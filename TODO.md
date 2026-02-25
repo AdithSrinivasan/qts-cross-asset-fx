@@ -16,6 +16,8 @@ Objective: Submit a draft including (A) a pitch book and (B) a Jupyter notebook.
 - [ ] Add notebook header with project title, student names, and student IDs
 - [ ] Write detailed project description and motivation
 - [ ] Describe hypotheses and economic intuition
+  - [ ] Scott: Hypothesis (motivation: equity to FX/futures)
+  - [ ] Adith: FX futures > FX spot logic
 - [ ] Outline data sources, universe, and sampling frequency
 - [ ] Implement initial data ingestion (Bloomberg/DataVento/public sources)
 - [ ] Implement initial data cleaning and formatting (dates, joins, missing values)
