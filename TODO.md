@@ -3,7 +3,7 @@
 Objective: Submit a draft including (A) a pitch book and (B) a Jupyter notebook. Performance analysis not required.
 
 ## Pitch Book (Slides)
-- [ x ] Create slide deck template
+- [x] Create slide deck template
 - [ ] Add title slide with project title, student names, and student IDs
 - [ ] Add introductory slides motivating the project idea
 - [ ] Add hypothesis and trade description slides (lead–lag between equity/credit and FX futures)
@@ -27,10 +27,10 @@ Objective: Submit a draft including (A) a pitch book and (B) a Jupyter notebook.
 - [ ] Add brief narrative under each figure describing what is shown
 
 ## Repo Setup (Minimum Required)
-- [ x ] Create repository structure (data/, notebooks/, report/)
-- [ x ] Add README.md (project overview + scope for Week 1)
-- [ x ] Add TODO.md (Week 1 scope only)
-- [ ]x  Add .gitignore (exclude large raw data and credentials)
+- [x] Create repository structure (data/, notebooks/, report/)
+- [x] Add README.md (project overview + scope for Week 1)
+- [x] Add TODO.md (Week 1 scope only)
+- [x] Add .gitignore (exclude large raw data and credentials)
 
 ## Coordination
 - [ ] Finalize country list for initial prototype (5–6 markets)
