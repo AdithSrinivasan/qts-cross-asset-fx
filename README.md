@@ -5,11 +5,11 @@ Winter 2026 FINM 33150 Quantitative Trading Strategies — Cross-Asset FX Future
 Research project for the FINM 33150 Quantitative Trading Strategies course, in fulfillment of the MS Financial Mathematics at the University of Chicago. The objective is to study whether lead–lag relationships between **equity and credit markets** can predict **FX futures returns**, and to evaluate tradable strategies under realistic trading assumptions.
 
 ## Researchers
-- Adith Srinivasan
+- Adith Srinivasan: 12255557
 - Andrew Moukabary
 - Cole Koryto: 12506473
 - Jonathan Kim
-- Scott Hanna
+- Scott Hanna: 12496698
 
 ## Project Overview
 This repository contains a research and backtesting framework for testing cross-asset predictability using equity (and credit proxies where relevant) as signals for FX futures. The strategy focuses on a small set of developed and emerging markets with varying liquidity, using standardized FX futures for implementation. Evaluation is conducted via walk-forward backtesting with transaction costs and contract rolls.
@@ -21,6 +21,15 @@ This repository contains a research and backtesting framework for testing cross-
 
 ## Universe (Prototype)
 Initial focus on ~5–6 countries selected from Bloomberg DM/EM indexes (diverse regions; mix of liquidity levels). Final selection subject to data availability.
+
+### Subsample Proof of Concept:
+- Great Britain / United Kingdom
+- Japan
+- Australia
+- Canada
+- Mexico
+- Brazil
+- South Africa
 
 ## Methodology
 - **Signals (X):** equity index returns, factor returns, volatility/regime features; optional credit proxies (e.g., CDS where available).
