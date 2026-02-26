@@ -2,7 +2,7 @@
 
 Winter 2026 FINM 33150 Quantitative Trading Strategies — Cross-Asset FX Futures Trading Project
 
-Research project for the FINM 33150 Quantitative Trading Strategies course, in fulfilment of the MS Financial Mathematics at the University of Chicago. The objective is to study whether lead–lag relationships between **equity and credit markets** can predict **FX futures returns**, and to evaluate tradable strategies under realistic trading assumptions.
+Research project for the FINM 33150 Quantitative Trading Strategies course, in fulfillment of the MS Financial Mathematics at the University of Chicago. The objective is to study whether lead–lag relationships between **equity and credit markets** can predict **FX futures returns**, and to evaluate tradable strategies under realistic trading assumptions.
 
 ## Researchers
 - Adith Srinivasan
@@ -30,7 +30,14 @@ Initial focus on ~5–6 countries selected from Bloomberg DM/EM indexes (diverse
 - **Validation:** rolling walk-forward backtests; IC by year; regime analysis.
 
 ## Data & Tools
-- **Data:** Bloomberg (DM/EM indexes, FX futures), DataVento (as needed), selected public macro series.
+- **Data:** Bloomberg — Equity market indices:  
+  - Mexico: MEXBOL Index (S&P/BMV IPC)  
+  - Brazil: IBOV Index (Ibovespa)  
+  - South Africa: JALSH Index (FTSE/JSE All Share)  
+  - Japan: NKY Index (Nikkei 225)  
+  - Australia: AS51 Index (S&P/ASX 200)  
+  - Canada: SPTSX Index (S&P/TSX Composite)  
+  - Additional data: DM/EM indexes, FX futures, selected public macro series.  
 - **Stack:** Python, Jupyter, pandas/numpy, statsmodels/sklearn; plotnine/matplotlib for visualization.
 
 ## Timeline
@@ -38,5 +45,5 @@ Initial focus on ~5–6 countries selected from Bloomberg DM/EM indexes (diverse
 
 ## Notes / Risks
 - Strict timing enforced to avoid lookahead (equity information at _t_ mapped to FX returns at _t+1_).
-- FX liquidity differences expected to attenuate signal strength in the most liquid pairs.
+- FX liquidity differences are expected to attenuate signal strength in the most liquid pairs.
 - Overfitting controlled via walk-forward validation and simple baselines prior to complex models.
