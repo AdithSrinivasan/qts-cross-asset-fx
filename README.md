@@ -6,7 +6,7 @@ Research project for the FINM 33150 Quantitative Trading Strategies course, in f
 
 ## Researchers
 - Adith Srinivasan: 12255557
-- Andrew Moukabary
+- Andrew Moukabary: 12311312
 - Cole Koryto: 12506473
 - Jonathan Kim
 - Scott Hanna: 12496698
