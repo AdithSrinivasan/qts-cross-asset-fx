@@ -4,26 +4,26 @@ Objective: Submit a draft including (A) a pitch book and (B) a Jupyter notebook.
 
 ## Pitch Book (Slides)
 - [x] Create slide deck template
-- [ ] Add title slide with project title, student names, and student IDs
-- [ ] Add introductory slides motivating the project idea
-- [ ] Add hypothesis and trade description slides (lead–lag between equity/credit and FX futures)
-- [ ] Add data sources and universe overview (DM/EM selection; FX futures instruments)
+- [x] Add title slide with project title, student names, and student IDs
+- [x] Add introductory slides motivating the project idea
+- [x] Add hypothesis and trade description slides (lead–lag between equity/credit and FX futures)
+- [x] Add data sources and universe overview (DM/EM selection; FX futures instruments)
 - [ ] Add methodology overview (signals, targets, validation plan)
 - [ ] Add limitations and risks slide (liquidity, timing, data constraints)
 - [ ] Export draft pitch book (PDF/PPTX)
 
 ## Jupyter Notebook (Draft)
-- [ ] Add notebook header with project title, student names, and student IDs
-- [ ] Write detailed project description and motivation
-- [ ] Describe hypotheses and economic intuition
-  - [ ] Scott: Hypothesis (motivation: equity to FX/futures)
-  - [ ] Adith: FX futures > FX spot logic
-- [ ] Outline data sources, universe, and sampling frequency
+- [x] Add notebook header with project title, student names, and student IDs
+- [x] Write detailed project description and motivation
+- [x] Describe hypotheses and economic intuition
+  - [x] Scott: Hypothesis (motivation: equity to FX/futures)
+  - [x] Adith: FX futures > FX spot logic
+- [x] Outline data sources, universe, and sampling frequency
 - [ ] Implement initial data ingestion (Bloomberg/DataVento/public sources)
 - [ ] Implement initial data cleaning and formatting (dates, joins, missing values)
 - [ ] Arrange data into modeling-ready tables (features/targets)
 - [ ] Produce at least three exploratory graphs of raw/derived data
-  - [ ] Equity index time series (or factor proxy)
+  - [x] Equity index time series (or factor proxy)
   - [ ] FX futures price/return series
   - [ ] Example cross-asset relationship (scatter, rolling correlation, or lead–lag plot)
 - [ ] Add brief narrative under each figure describing what is shown

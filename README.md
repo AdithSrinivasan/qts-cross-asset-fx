@@ -23,12 +23,12 @@ This repository contains a research and backtesting framework for testing cross-
 Initial focus on ~5–6 countries selected from Bloomberg DM/EM indexes (diverse regions; mix of liquidity levels). Final selection subject to data availability.
 
 ### Subsample Proof of Concept:
+- Australia
+- Brazil
+- Canada
 - Great Britain / United Kingdom
 - Japan
-- Australia
-- Canada
 - Mexico
-- Brazil
 - South Africa
 
 ## Methodology
