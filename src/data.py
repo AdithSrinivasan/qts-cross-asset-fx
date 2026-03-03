@@ -1,17 +1,8 @@
-"""FX spot data loader.
+"""Bloomberg data preparation utilities for the cross-asset FX analysis."""
 
-Reads per-currency CSV files from the FRED data directory and normalises
-every rate to *foreign currency units per 1 USD*, returning a single
-tidy Polars DataFrame with columns:
-
-    date          (Date)
-    currency      (str)   ISO-4217 currency code
-    rate_per_usd  (f64)   units of that currency per 1 USD
-"""
-
-from pathlib import Path
-
+import pandas as pd
 import polars as pl
+from pathlib import Path
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "fx_data"
 
@@ -27,6 +18,54 @@ _SERIES_META: dict[str, tuple[str, bool]] = {
     "DEXBZUS": ("BRL", False),  # BRL per USD
     "DEXSFUS": ("ZAR", False),  # ZAR per USD
 }
+
+
+def _read_series(path: Path, currency: str, invert: bool) -> pl.DataFrame:
+    series_code = path.stem
+    df = pl.read_csv(path, try_parse_dates=True).rename(
+        {"observation_date": "date", series_code: "rate_per_usd"}
+    )
+    # FRED encodes missing observations as "." — cast safely
+    df = df.with_columns(pl.col("rate_per_usd").cast(pl.Float64, strict=False))
+
+    if invert:
+        df = df.with_columns((1.0 / pl.col("rate_per_usd")).alias("rate_per_usd"))
+
+    return df.with_columns(pl.lit(currency).alias("currency")).select(
+        ["date", "currency", "rate_per_usd"]
+    )
+
+
+def prepare_bbg_data(
+    data: pd.DataFrame, start_date: str, end_date: str
+) -> pd.DataFrame:
+    """Filter, forward-fill and clean a Bloomberg Excel export.
+
+    Parameters
+    ----------
+    data:
+        Raw DataFrame with a 'Dates' column (or 'date' if already renamed).
+    start_date:
+        Exclusive lower bound as an ISO date string (e.g. '2024-01-01').
+    end_date:
+        Exclusive upper bound as an ISO date string.
+
+    Returns
+    -------
+    pd.DataFrame
+        Cleaned frame indexed by date.
+    """
+    data = data.copy()
+    data = data.rename(columns={"Dates": "date"})
+    data["date"] = pd.to_datetime(data["date"])
+    data = data.set_index("date")
+    data = data[
+        (data.index > pd.to_datetime(start_date))
+        & (data.index < pd.to_datetime(end_date))
+    ]
+    data = data.ffill()
+    data = data.dropna()
+    return data
 
 
 def _read_series(path: Path, currency: str, invert: bool) -> pl.DataFrame:
@@ -73,10 +112,3 @@ def load_fx_spot(data_dir: Path = DATA_DIR) -> pl.DataFrame:
         .sort(["date", "currency"])
     )
 
-
-if __name__ == "__main__":
-    df = load_fx_spot()
-    print(df)
-    print(f"\nShape: {df.shape}")
-    print(f"Currencies: {df['currency'].unique().sort().to_list()}")
-    print(f"Date range: {df['date'].min()} → {df['date'].max()}")
