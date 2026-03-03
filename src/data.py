@@ -2,21 +2,29 @@
 
 import pandas as pd
 import polars as pl
+import numpy as np
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "data" / "fx_data"
+DATA_DIR = Path(__file__).parent.parent / "data"
+FX_DATA_DIR = DATA_DIR / "fx_data"
 
-# Maps FRED series code → (ISO currency code, invert_flag)
-# invert=True  → raw file is USD per FOREIGN, so rate_per_usd = 1 / raw
-# invert=False → raw file is FOREIGN per USD, so rate_per_usd = raw
-_SERIES_META: dict[str, tuple[str, bool]] = {
-    "DEXUSUK": ("GBP", True),   # USD per GBP  → invert
-    "DEXUSAL": ("AUD", True),   # USD per AUD  → invert
-    "DEXJPUS": ("JPY", False),  # JPY per USD
-    "DEXCAUS": ("CAD", False),  # CAD per USD
-    "DEXMXUS": ("MXN", False),  # MXN per USD
-    "DEXBZUS": ("BRL", False),  # BRL per USD
-    "DEXSFUS": ("ZAR", False),  # ZAR per USD
+# Maps FRED FX series code → (ISO currency code, needs_inversion)
+#
+# Target convention:
+#     All series are standardized to USD per 1 unit of foreign currency.
+#
+# needs_inversion = True  → raw FRED series is foreign currency per USD,
+#                            so we invert (1 / raw) to obtain USD per foreign.
+# needs_inversion = False → raw FRED series is already USD per foreign,
+#                            so we keep it as-is.
+_USD_PER_FX_META: dict[str, tuple[str, bool]] = {
+    "DEXUSUK": ("GBP", False),  # USD per GBP  → keep
+    "DEXUSAL": ("AUD", False),  # USD per AUD  → keep
+    "DEXJPUS": ("JPY", True),   # JPY per USD  → invert
+    "DEXCAUS": ("CAD", True),   # CAD per USD  → invert
+    "DEXMXUS": ("MXN", True),   # MXN per USD  → invert
+    "DEXBZUS": ("BRL", True),   # BRL per USD  → invert
+    "DEXSFUS": ("ZAR", True),   # ZAR per USD  → invert
 }
 
 
@@ -108,7 +116,7 @@ def load_fx_spot(
         ``date``, ``currency``, ``rate_per_usd``.
     """
     frames: list[pl.DataFrame] = []
-    for series_code, (currency, invert) in _SERIES_META.items():
+    for series_code, (currency, invert) in _USD_PER_FX_META.items():
         path = data_dir / f"{series_code}.csv"
         if not path.exists():
             raise FileNotFoundError(f"Expected data file not found: {path}")
@@ -128,8 +136,8 @@ def load_fx_spot(
     return df
 
 
-def load_fx_spot_pandas(
-    fx_data_dir: Path,
+def prepare_fx_spot_data(
+    fx_data_dir: Path = FX_DATA_DIR,
     start_date: str | None = None,
     end_date: str | None = None,
 ):
@@ -159,9 +167,8 @@ def load_fx_spot_pandas(
     fx = fx.sort_index()
     fx = fx.loc[start_date:end_date]
 
-    print(fx.head())
     # Rename columns from FRED codes to ISO currency codes, inverting where needed
-    for series_code, (currency, invert) in _SERIES_META.items():
+    for series_code, (currency, invert) in _USD_PER_FX_META.items():
         if series_code in fx.columns:
             if invert:
                 fx[series_code] = 1 / fx[series_code]
@@ -169,6 +176,82 @@ def load_fx_spot_pandas(
 
     assert isinstance(fx.index, pd.DatetimeIndex)
     fx = fx.reindex(sorted(fx.columns), axis=1)
-    fx.to_csv(fx_data_dir / "fx_data.csv")
+    fx.to_csv(DATA_DIR / "fx_data.csv")
 
     return fx
+
+
+def prepare_fx_carry_data(
+    data_dir: Path = DATA_DIR,
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+
+    yields = pd.read_excel(DATA_DIR / "fwd_yield_ann.xlsx", parse_dates=["Dates"])
+    yields = yields.rename(columns={"Dates": "date"})
+    yields = yields.set_index("date")
+    yields.columns = yields.columns.str.replace("I1M Curncy", "", regex=False)
+    yields = yields.reindex(sorted(yields.columns), axis=1)
+
+    yields = yields.loc[start_date:end_date]
+
+    carry = yields / 100 / 252
+    carry.to_csv(DATA_DIR / "daily_carry.csv")
+
+    return carry
+
+
+def calculate_fx_excess_returns(
+    data_dir: Path = DATA_DIR,
+    fx_data_dir: Path = FX_DATA_DIR,
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+    # --- Spot ---
+    fx_path = data_dir / "fx_data.csv"
+    if fx_path.is_file():
+        fx = pd.read_csv(fx_path, index_col="date", parse_dates=True)
+    else:
+        fx = prepare_fx_spot_data(
+            fx_data_dir=fx_data_dir,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    # --- Carry ---
+    carry_path = data_dir / "carry.csv"
+    if carry_path.is_file():
+        carry = pd.read_csv(carry_path, index_col="date", parse_dates=True)
+    else:
+        # IMPORTANT: this must be your carry builder, not spot
+        # e.g. carry = prepare_fx_carry_data(data_dir=data_dir, start_date=start_date, end_date=end_date)
+        carry = prepare_fx_carry_data(
+            data_dir=data_dir,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    # --- Spot log returns ---
+    dlog_fx = np.log(fx).diff()
+
+    # --- Align dates and currencies (critical) ---
+    # Inner join ensures we only keep dates present in BOTH and drops the first diff NaN cleanly.
+    common_cols = sorted(set(dlog_fx.columns).intersection(carry.columns))
+    dlog_fx = dlog_fx[common_cols]
+    carry = carry[common_cols]
+
+    spot_and_carry = dlog_fx.join(carry, how="inner", lsuffix="_spot", rsuffix="_carry")
+
+    # Build excess returns
+    fx_ret = pd.DataFrame(index=spot_and_carry.index, columns=common_cols, dtype=float)
+    fx_ret.index.name = "date"
+
+    for c in common_cols:
+        fx_ret[c] = spot_and_carry[f"{c}_spot"] + spot_and_carry[f"{c}_carry"]
+
+    fx_ret = fx_ret.dropna()
+
+    out_path = data_dir / "fx_returns_data.csv"
+    fx_ret.to_csv(out_path)
+
+    return fx_ret
