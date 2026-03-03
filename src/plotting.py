@@ -26,6 +26,7 @@ from plotnine import (
     scale_x_datetime,
     theme,
     theme_minimal,
+    theme_gray
 )
 
 from src.data import load_fx_spot
@@ -82,8 +83,8 @@ def _shading_df() -> pd.DataFrame:
 
 
 def plot_indexed_spot_rates(wide_df: pd.DataFrame) -> ggplot:
-    """Figure 1: Indexed spot rates (Jan 1995 = 100)."""
-    subset = wide_df.loc["1995-01-01":, CURRENCIES].copy()
+    """Figure 1: Indexed spot rates"""
+    subset = wide_df.loc[:, CURRENCIES].copy()
     base = subset.bfill().iloc[0]
     indexed = subset.div(base).mul(100)
 
@@ -96,23 +97,16 @@ def plot_indexed_spot_rates(wide_df: pd.DataFrame) -> ggplot:
 
     return (
         ggplot(plot_df, aes("date", "index_level", color="currency"))
-        + geom_rect(
-            data=_shading_df(),
-            mapping=aes(xmin="start", xmax="end", ymin=-np.inf, ymax=np.inf),
-            inherit_aes=False,
-            fill="#374151",
-            alpha=0.07,
-        )
         + geom_line(size=0.8, alpha=0.9)
         + geom_hline(yintercept=100, color="#9CA3AF", linetype="dotted", size=0.4)
         + scale_color_manual(values=PALETTE)
         + scale_x_datetime(date_breaks="5 years", date_labels="%Y")
         + labs(
-            title="FX Spot Rates - Indexed to 100 at January 1995",
-            y="Index (Jan 1995 = 100)",
+            title="FX Spot Rates - Indexed to 100",
+            y="Index",
             x="",
             color="Currency",
-            caption="Values above 100 indicate foreign currency depreciation vs USD since Jan 1995.",
+            caption="Values above 100 indicate foreign currency depreciation vs USD",
         )
         + theme_minimal()
         + theme(
