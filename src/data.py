@@ -84,7 +84,11 @@ def _read_series(path: Path, currency: str, invert: bool) -> pl.DataFrame:
     )
 
 
-def load_fx_spot(data_dir: Path = DATA_DIR) -> pl.DataFrame:
+def load_fx_spot(
+    data_dir: Path = DATA_DIR,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> pl.DataFrame:
     """Return all FX spot rates normalised to foreign-currency-per-1-USD.
 
     Parameters
@@ -92,6 +96,10 @@ def load_fx_spot(data_dir: Path = DATA_DIR) -> pl.DataFrame:
     data_dir:
         Directory containing the FRED CSV files.  Defaults to the project's
         ``data/fx_data/`` folder.
+    start_date:
+        Optional start date filter in ``"YYYY-MM-DD"`` format (inclusive).
+    end_date:
+        Optional end date filter in ``"YYYY-MM-DD"`` format (inclusive).
 
     Returns
     -------
@@ -106,9 +114,61 @@ def load_fx_spot(data_dir: Path = DATA_DIR) -> pl.DataFrame:
             raise FileNotFoundError(f"Expected data file not found: {path}")
         frames.append(_read_series(path, currency, invert))
 
-    return (
+    df = (
         pl.concat(frames)
         .drop_nulls("rate_per_usd")
         .sort(["date", "currency"])
     )
 
+    if start_date is not None:
+        df = df.filter(pl.col("date") >= pl.lit(start_date).str.to_date())
+    if end_date is not None:
+        df = df.filter(pl.col("date") <= pl.lit(end_date).str.to_date())
+
+    return df
+
+
+def load_fx_spot_pandas(
+    fx_data_dir: Path,
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+    # Load FX data
+    fx = pd.DataFrame({"date": pd.date_range(start_date, end_date, freq="D")})
+    fx.set_index("date", inplace=True)
+
+    country_fx_dfs = []
+
+    for file in fx_data_dir.iterdir():
+        if file.is_file():
+            print("Loading FX data from...", file)
+            df = pd.read_csv(file, parse_dates=["observation_date"], index_col="observation_date")
+            df = df.sort_index()
+
+            ticker = file.stem
+            df = df.rename(columns={ticker: ticker})
+
+            assert isinstance(fx.index, pd.DatetimeIndex), "total_fx index is not DatetimeIndex"
+            assert isinstance(df.index, pd.DatetimeIndex), "country_fx index is not DatetimeIndex"
+
+            country_fx_dfs.append(df)
+
+    fx = pd.concat(country_fx_dfs, axis=1, sort=True)
+    fx.reset_index(inplace=True)
+    fx = fx.rename(columns={"observation_date": "date"}).set_index("date")
+    fx = fx.sort_index()
+    fx = fx.loc[start_date:end_date]
+
+    print(fx.head())
+    # Rename columns from FRED codes to ISO currency codes, inverting where needed
+    for series_code, (currency, invert) in _SERIES_META.items():
+        if series_code in fx.columns:
+            if invert:
+                fx[series_code] = 1 / fx[series_code]
+            fx = fx.rename(columns={series_code: currency})
+
+    assert isinstance(fx.index, pd.DatetimeIndex)
+    fx = fx.reindex(sorted(fx.columns), axis=1)
+    fx.to_csv(fx_data_dir / "fx_data.csv")
+
+    return fx
