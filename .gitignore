@@ -208,3 +208,6 @@ __marimo__/
 
 # Databento
 .databento_api_key
+
+# DS Store
+.DS_Store
