@@ -220,7 +220,7 @@ def calculate_fx_excess_returns(
     # --- Spot ---
     fx_path = data_dir / "fx_data.csv"
     if fx_path.is_file():
-        fx = pd.read_csv(fx_path, index_col="date", parse_dates=True)
+        fx = pd.read_csv(fx_path, index_col="date", parse_dates=["date"])
     else:
         fx = prepare_fx_spot_data(
             fx_data_dir=fx_data_dir,
@@ -229,7 +229,7 @@ def calculate_fx_excess_returns(
         )
 
     # --- Carry ---
-    carry_path = data_dir / "carry.csv"
+    carry_path = data_dir / "daily_carry.csv"
     if carry_path.is_file():
         carry = pd.read_csv(carry_path, index_col="date", parse_dates=True)
     else:

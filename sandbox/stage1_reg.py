@@ -17,13 +17,13 @@ from src.regression import stage1_panel_regression, stage1_panel_regression_cds
 DATA_DIR = Path(__file__).parent.parent / "data"
 FX_DATA = DATA_DIR / "fx_data"
 
-START_DATE = pd.to_datetime("2022-01-03")
-END_DATE = pd.to_datetime("2026-01-01")
+START_DATE = "2022-01-03"
+END_DATE = "2026-01-01"
 
 # --- FX Excess Returns ---
 fx_ret = calculate_fx_excess_returns(DATA_DIR, FX_DATA, START_DATE, END_DATE)
 print("Time series of Excess Return on FX...")
-print(fx_ret.head())
+print(fx_ret.tail())
 
 # --- Carry ---
 carry_path = DATA_DIR / "carry.csv"
@@ -38,14 +38,14 @@ else:
         end_date=END_DATE,
     )
 print("Loaded daily FX carry data...")
-print(carry.head())
+print(carry.tail())
 
 # --- Dollar Factor ---
 dollar = fx_ret.mean(axis=1)
 dollar.name = "Dollar"
 
 print("Constructed Dollar Factor (cross-sectional average FX excess return)...")
-print(dollar.head())
+print(dollar.tail())
 
 # --- CDS ---
 cds_path = DATA_DIR / "cds_5y_data.xlsx"
@@ -68,7 +68,7 @@ cds = cds.set_index("date")
 
 cds = cds / 100 / 100 # convert from bps to decimal
 print("CDS Data (in decimal)...")
-print(cds.head())
+print(cds.tail())
 
 # --- Regression Results ---
 
