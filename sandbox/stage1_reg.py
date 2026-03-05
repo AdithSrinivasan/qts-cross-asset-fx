@@ -73,8 +73,8 @@ print(cds.head())
 # --- Regression Results ---
 
 # --- currency sets ---
-ccy_all = ["AUD", "CAD", "GBP", "JPY", "SEK", "NOK", "CHF", "NZD", "MXN", "ZAR", "KRW", "SGD", "HKD", "INR"]
-ccy_cds = ["JPY", "MXN", "ZAR", "KRW", "SGD", "HKD", "INR"]
+ccy_all = ["AUD", "CAD", "GBP", "JPY", "SEK", "NOK", "CHF", "NZD", "MXN", "ZAR", "KRW", "SGD", "HKD", "INR", "BRL"]
+ccy_cds = ["JPY", "MXN", "ZAR", "KRW", "SGD", "HKD", "INR", "BRL"]
 
 # =========================
 # 1) MAIN: Stage 1 without CDS (full sample)
