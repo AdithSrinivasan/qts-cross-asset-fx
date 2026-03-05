@@ -20,11 +20,19 @@ FX_DATA_DIR = DATA_DIR / "fx_data"
 _USD_PER_FX_META: dict[str, tuple[str, bool]] = {
     "DEXUSUK": ("GBP", False),  # USD per GBP  → keep
     "DEXUSAL": ("AUD", False),  # USD per AUD  → keep
-    "DEXJPUS": ("JPY", True),   # JPY per USD  → invert
-    "DEXCAUS": ("CAD", True),   # CAD per USD  → invert
-    "DEXMXUS": ("MXN", True),   # MXN per USD  → invert
-    "DEXBZUS": ("BRL", True),   # BRL per USD  → invert
-    "DEXSFUS": ("ZAR", True),   # ZAR per USD  → invert
+    "DEXJPUS": ("JPY", True),  # JPY per USD  → invert
+    "DEXCAUS": ("CAD", True),  # CAD per USD  → invert
+    "DEXMXUS": ("MXN", True),  # MXN per USD  → invert
+    "DEXBZUS": ("BRL", True),  # BRL per USD  → invert
+    "DEXSFUS": ("ZAR", True),  # ZAR per USD  → invert
+    "DEXHKUS": ("HKD", True),  # HKD per USD  → invert
+    "DEXINUS": ("INR", True),  # INR per USD  → invert
+    "DEXKOUS": ("KRW", True),  # KRW per USD  → invert
+    "DEXNOUS": ("NOK", True),  # NOK per USD  → invert
+    "DEXSDUS": ("SEK", True),  # SEK per USD  → invert
+    "DEXSIUS": ("SGD", True),  # SGD per USD  → invert
+    "DEXSZUS": ("CHF", True),  # CHF per USD  → invert
+    "DEXUSNZ": ("NZD", False),  # USD per NZD  → keep
 }
 
 
@@ -122,11 +130,7 @@ def load_fx_spot(
             raise FileNotFoundError(f"Expected data file not found: {path}")
         frames.append(_read_series(path, currency, invert))
 
-    df = (
-        pl.concat(frames)
-        .drop_nulls("rate_per_usd")
-        .sort(["date", "currency"])
-    )
+    df = pl.concat(frames).drop_nulls("rate_per_usd").sort(["date", "currency"])
 
     if start_date is not None:
         df = df.filter(pl.col("date") >= pl.lit(start_date).str.to_date())
@@ -150,14 +154,20 @@ def prepare_fx_spot_data(
     for file in fx_data_dir.iterdir():
         if file.is_file():
             print("Loading FX data from...", file)
-            df = pd.read_csv(file, parse_dates=["observation_date"], index_col="observation_date")
+            df = pd.read_csv(
+                file, parse_dates=["observation_date"], index_col="observation_date"
+            )
             df = df.sort_index()
 
             ticker = file.stem
             df = df.rename(columns={ticker: ticker})
 
-            assert isinstance(fx.index, pd.DatetimeIndex), "total_fx index is not DatetimeIndex"
-            assert isinstance(df.index, pd.DatetimeIndex), "country_fx index is not DatetimeIndex"
+            assert isinstance(
+                fx.index, pd.DatetimeIndex
+            ), "total_fx index is not DatetimeIndex"
+            assert isinstance(
+                df.index, pd.DatetimeIndex
+            ), "country_fx index is not DatetimeIndex"
 
             country_fx_dfs.append(df)
 
@@ -188,7 +198,7 @@ def prepare_fx_carry_data(
 ):
 
     yields = pd.read_excel(DATA_DIR / "fwd_yield_ann.xlsx", parse_dates=["Dates"])
-    yields = yields.rename(columns={"Dates": "date"})
+    yields = yields.rename(columns={"Dates": "date", "IRNI1M Curncy": "INRI1M Curncy", "KWNI1M Curncy": "KRWI1M Curncy", "BCNI1M Curncy": "BRLI1M Curncy"})
     yields = yields.set_index("date")
     yields.columns = yields.columns.str.replace("I1M Curncy", "", regex=False)
     yields = yields.reindex(sorted(yields.columns), axis=1)
@@ -210,7 +220,7 @@ def calculate_fx_excess_returns(
     # --- Spot ---
     fx_path = data_dir / "fx_data.csv"
     if fx_path.is_file():
-        fx = pd.read_csv(fx_path, index_col="date", parse_dates=True)
+        fx = pd.read_csv(fx_path, index_col="date", parse_dates=["date"])
     else:
         fx = prepare_fx_spot_data(
             fx_data_dir=fx_data_dir,
@@ -219,7 +229,7 @@ def calculate_fx_excess_returns(
         )
 
     # --- Carry ---
-    carry_path = data_dir / "carry.csv"
+    carry_path = data_dir / "daily_carry.csv"
     if carry_path.is_file():
         carry = pd.read_csv(carry_path, index_col="date", parse_dates=True)
     else:

@@ -12,18 +12,18 @@ import numpy as np
 from pathlib import Path
 
 from src.data import prepare_fx_carry_data, calculate_fx_excess_returns
-from src.regression import stage1_panel_regression, stage1_panel_regression_cds
+from src.regression import stage1_panel_regression, stage1_panel_regression_cds, run_ols
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 FX_DATA = DATA_DIR / "fx_data"
 
-START_DATE = pd.to_datetime("2022-01-03")
-END_DATE = pd.to_datetime("2026-02-20")
+START_DATE = "2022-01-03"
+END_DATE = "2026-01-01"
 
 # --- FX Excess Returns ---
 fx_ret = calculate_fx_excess_returns(DATA_DIR, FX_DATA, START_DATE, END_DATE)
 print("Time series of Excess Return on FX...")
-print(fx_ret.head())
+print(fx_ret.tail())
 
 # --- Carry ---
 carry_path = DATA_DIR / "carry.csv"
@@ -38,14 +38,14 @@ else:
         end_date=END_DATE,
     )
 print("Loaded daily FX carry data...")
-print(carry.head())
+print(carry.tail())
 
 # --- Dollar Factor ---
 dollar = fx_ret.mean(axis=1)
 dollar.name = "Dollar"
 
 print("Constructed Dollar Factor (cross-sectional average FX excess return)...")
-print(dollar.head())
+print(dollar.tail())
 
 # --- CDS ---
 cds_path = DATA_DIR / "cds_5y_data.xlsx"
@@ -57,19 +57,24 @@ cds = cds.rename(columns={
     "BRAZIL CDS USD SR 5Y D14 Corp": "BRL",
     "MEX CDS USD SR 5Y D14 Corp": "MXN",
     "JGB CDS USD SR 5Y D14 Corp": "JPY",
+    "KOREA CDS USD SR 5Y D14 Corp": "KRW",
+    "SINGP CDS USD SR 5Y D14 Corp": "SGD",
+    "HONGK CDS USD SR 5Y D14 Corp": "HKD",
+    "INDIA CDS USD SR 1Y D14 Corp": "INR"
 })
+
 cds = cds.reindex(sorted(cds.columns), axis=1)
 cds = cds.set_index("date")
 
 cds = cds / 100 / 100 # convert from bps to decimal
 print("CDS Data (in decimal)...")
-print(cds.head())
+print(cds.tail())
 
 # --- Regression Results ---
 
 # --- currency sets ---
-ccy_all = ["AUD", "CAD", "GBP", "JPY", "MXN", "ZAR"]
-ccy_cds = ["JPY", "MXN", "ZAR"]
+ccy_all = ["AUD", "CAD", "GBP", "JPY", "SEK", "NOK", "CHF", "NZD", "MXN", "ZAR", "KRW", "SGD", "HKD", "INR", "BRL"]
+ccy_cds = ["JPY", "MXN", "ZAR", "KRW", "SGD", "HKD", "INR", "BRL"]
 
 # =========================
 # 1) MAIN: Stage 1 without CDS (full sample)
@@ -79,7 +84,7 @@ res_main, betas_main = stage1_panel_regression_cds(
     carry=carry[ccy_all],
     dollar=dollar,
     cds=None,
-    base_ccy="AUD",
+    base_ccy="CAD",
 )
 
 u_main = res_main.resids.unstack("currency")   # dates x currencies
@@ -114,7 +119,14 @@ print("\nDollar betas (with CDS):\n", betas_cds)
 
 print("\n=== Stage 1 (Without CDS subset) ===")
 stage1_res_path = DATA_DIR / "stage1_residuals.csv"
-res, betas = stage1_panel_regression(fx_ret, carry, dollar, cds=None)
+res, betas = stage1_panel_regression_cds(
+    rx=fx_ret[ccy_all],
+    carry=carry[ccy_all],
+    dollar=dollar,
+    cds=None,
+    base_ccy="CAD",
+)
+print(res.summary)
 u_hat_wide = res.resids.unstack("currency")
 u_hat_wide.index.name = "date"
 u_hat_wide.to_csv(stage1_res_path)
