@@ -10,6 +10,7 @@ class Backtester:
 
         self.trade_log = [] # STRUCTURE: [{ts:, symbol:, side:, quantity:, price:, trading_cost:, effective_price: }
         self.value_log = [] # STRUCTURE: [{ts:, net_equity:, equity:, cash:, buying_power: }
+        self.positions = [] # STRUCTURE: [{
 
         self.cash = starting_cash
         self.buying_power = self.cash * leverage_multiplier

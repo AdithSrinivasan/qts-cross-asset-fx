@@ -255,3 +255,8 @@ def calculate_fx_excess_returns(
     fx_ret.to_csv(out_path)
 
     return fx_ret
+
+
+def read_signal_data(data_dir: Path = DATA_DIR):
+    signals_df = pd.read_csv(data_dir / "rf_predictions.csv", index_col="date", parse_dates="date")
+    return signals_df
