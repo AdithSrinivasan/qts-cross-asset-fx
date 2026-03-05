@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-from src.data import prepare_fx_carry_data, calculate_fx_excess_returns
+from src.load_data import prepare_fx_carry_data, calculate_fx_excess_returns
 from src.regression import stage1_panel_regression, stage1_panel_regression_cds, run_ols
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -52,28 +52,46 @@ cds_path = DATA_DIR / "cds_5y_data.xlsx"
 cds = pd.read_excel(cds_path, index_col="Dates", parse_dates=True)
 cds = cds.reset_index()
 cds = cds.rename(columns={"Dates": "date"})
-cds = cds.rename(columns={
-    "REPSOU CDS USD SR 5Y D14 Corp": "ZAR",
-    "BRAZIL CDS USD SR 5Y D14 Corp": "BRL",
-    "MEX CDS USD SR 5Y D14 Corp": "MXN",
-    "JGB CDS USD SR 5Y D14 Corp": "JPY",
-    "KOREA CDS USD SR 5Y D14 Corp": "KRW",
-    "SINGP CDS USD SR 5Y D14 Corp": "SGD",
-    "HONGK CDS USD SR 5Y D14 Corp": "HKD",
-    "INDIA CDS USD SR 1Y D14 Corp": "INR"
-})
+cds = cds.rename(
+    columns={
+        "REPSOU CDS USD SR 5Y D14 Corp": "ZAR",
+        "BRAZIL CDS USD SR 5Y D14 Corp": "BRL",
+        "MEX CDS USD SR 5Y D14 Corp": "MXN",
+        "JGB CDS USD SR 5Y D14 Corp": "JPY",
+        "KOREA CDS USD SR 5Y D14 Corp": "KRW",
+        "SINGP CDS USD SR 5Y D14 Corp": "SGD",
+        "HONGK CDS USD SR 5Y D14 Corp": "HKD",
+        "INDIA CDS USD SR 1Y D14 Corp": "INR",
+    }
+)
 
 cds = cds.reindex(sorted(cds.columns), axis=1)
 cds = cds.set_index("date")
 
-cds = cds / 100 / 100 # convert from bps to decimal
+cds = cds / 100 / 100  # convert from bps to decimal
 print("CDS Data (in decimal)...")
 print(cds.tail())
 
 # --- Regression Results ---
 
 # --- currency sets ---
-ccy_all = ["AUD", "CAD", "GBP", "JPY", "SEK", "NOK", "CHF", "NZD", "MXN", "ZAR", "KRW", "SGD", "HKD", "INR", "BRL"]
+ccy_all = [
+    "AUD",
+    "CAD",
+    "GBP",
+    "JPY",
+    "SEK",
+    "NOK",
+    "CHF",
+    "NZD",
+    "MXN",
+    "ZAR",
+    "KRW",
+    "SGD",
+    "HKD",
+    "INR",
+    "BRL",
+]
 ccy_cds = ["JPY", "MXN", "ZAR", "KRW", "SGD", "HKD", "INR", "BRL"]
 
 # =========================
@@ -87,7 +105,7 @@ res_main, betas_main = stage1_panel_regression_cds(
     base_ccy="CAD",
 )
 
-u_main = res_main.resids.unstack("currency")   # dates x currencies
+u_main = res_main.resids.unstack("currency")  # dates x currencies
 u_main.index.name = "date"
 
 # =========================
@@ -97,11 +115,13 @@ res_cds, betas_cds = stage1_panel_regression_cds(
     rx=fx_ret[ccy_cds],
     carry=carry[ccy_cds],
     dollar=dollar,
-    cds=cds[ccy_cds],          # make sure cds is aligned + in decimal (bps/10000) or your z-score
-    base_ccy="JPY",            # choose a base inside the subset
+    cds=cds[
+        ccy_cds
+    ],  # make sure cds is aligned + in decimal (bps/10000) or your z-score
+    base_ccy="JPY",  # choose a base inside the subset
 )
 
-u_cds = res_cds.resids.unstack("currency")     # dates x currencies
+u_cds = res_cds.resids.unstack("currency")  # dates x currencies
 u_cds.index.name = "date"
 
 # =========================

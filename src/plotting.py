@@ -26,10 +26,10 @@ from plotnine import (
     scale_x_datetime,
     theme,
     theme_minimal,
-    theme_gray
+    theme_gray,
 )
 
-from src.data import load_fx_spot
+from src.load_data import load_fx_spot
 
 CURRENCIES = ["AUD", "BRL", "CAD", "GBP", "JPY", "MXN", "ZAR"]
 CURRENCY_NAMES = {
