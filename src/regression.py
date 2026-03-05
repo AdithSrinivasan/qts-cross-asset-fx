@@ -1,6 +1,18 @@
 import pandas as pd
 from linearmodels.panel import PanelOLS
+from statsmodels.regression.linear_model import OLS
+from statsmodels.tools import add_constant
 
+
+def run_ols(y, x, add_const=True, verbose=False):
+    combined = pd.concat([y, x], axis=1).dropna()
+    y_clean  = combined.iloc[:, 0]
+    x_clean  = combined.iloc[:, 1:]
+    X        = add_constant(x_clean) if add_const else x_clean
+    model    = OLS(y_clean, X).fit()
+    if verbose:
+        print(model.summary())
+    return model
 
 def stage1_panel_regression(
     rx, carry, dollar, cds=None
@@ -105,3 +117,5 @@ def stage1_panel_regression_cds(
     betas = pd.Series(betas).reindex(sorted(dummies.columns))
 
     return res, betas
+
+

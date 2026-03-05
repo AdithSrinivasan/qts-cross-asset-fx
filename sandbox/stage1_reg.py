@@ -12,7 +12,7 @@ import numpy as np
 from pathlib import Path
 
 from src.data import prepare_fx_carry_data, calculate_fx_excess_returns
-from src.regression import stage1_panel_regression, stage1_panel_regression_cds
+from src.regression import stage1_panel_regression, stage1_panel_regression_cds, run_ols
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 FX_DATA = DATA_DIR / "fx_data"
