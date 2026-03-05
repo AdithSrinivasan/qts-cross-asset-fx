@@ -33,7 +33,7 @@ data = data[data.date <= END_DATE]
 data.set_index("date", inplace=True)
 
 
-preds = pd.read_csv(DATA_DIR / "rf_signals.csv")
+preds = pd.read_csv(DATA_DIR / "rf_test_predictions.csv")
 preds = preds[preds.date >= START_DATE]
 preds = preds[preds.date <= END_DATE]
 preds.set_index("date", inplace=True)

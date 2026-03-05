@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm, gaussian_kde
 
-sig = pd.read_csv("/Users/adithsrinivasan/Documents/GitHub/qts-cross-asset-fx/data/rf_signals.csv")
+sig = pd.read_csv("/data/rf_test_predictions.csv")
 
 data = sig["Australia"].dropna().values
 
