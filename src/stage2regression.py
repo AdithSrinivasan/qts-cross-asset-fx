@@ -1,9 +1,10 @@
 import os
 import pandas as pd
 import numpy as np
+from scipy import stats
 import yfinance as yf
 from pathlib import Path
-from sklearn.linear_model import LinearRegression
+import statsmodels.api as sm
 from sklearn.ensemble import RandomForestRegressor
 from src.load_data import prepare_bbg_data
 from pathlib import Path
@@ -135,30 +136,41 @@ def evaluate_signal(predictions, y_test, top_pcts=[0.1]):
     )
 
 
+def calculate_r2(predictions, y_true):
+    ss_res = np.sum((y_true - predictions) ** 2)
+    ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+    r2_score = 1 - (ss_res / ss_tot)
+    return r2_score
+
+
 def ols_regression(X_train, y_train, X_test, y_test, threshold_pct=0.1):
-    lr = LinearRegression()
-    lr.fit(X_train, y_train)
-    train_predictions = lr.predict(X_train)
+    lr = sm.OLS(y_train, sm.add_constant(X_train))
+    lr = lr.fit()
+    pvalues = lr.pvalues[1:]  # Exclude intercept
+    train_predictions = lr.predict(sm.add_constant(X_train))
     _, strong_accuracies_train, train_threshold = evaluate_signal(
         train_predictions, y_train, top_pcts=[threshold_pct]
     )
-    train_r2 = lr.score(X_train, y_train)
-    predictions = lr.predict(X_test)
+    train_r2 = lr.rsquared
+    predictions = lr.predict(sm.add_constant(X_test))
+
     df = pd.DataFrame({"Actual": y_test, "Predicted": predictions})
     # print(f"R^2 Score: {lr.score(X_test, y_test)}")
     _, strong_accuracies_test, test_threshold = evaluate_signal(
         predictions, y_test, top_pcts=[threshold_pct]
     )
+    test_r2 = calculate_r2(predictions, y_test)
     return (
         predictions,
         lr,
         df[["Actual"]],
         train_r2,
-        lr.score(X_test, y_test),
+        test_r2,
         strong_accuracies_train,
         strong_accuracies_test,
         train_threshold,
         test_threshold,
+        pvalues,
     )
 
 
@@ -171,6 +183,7 @@ def train_OLS(threshold_pct=0.1):
     test_accuracies = {}
     train_thresholds = {}
     test_thresholds = {}
+    pvalues = {}
 
     for country, data in countries.items():
         if country not in country_residuals:
@@ -197,9 +210,7 @@ def train_OLS(threshold_pct=0.1):
         )  # Shift to align with next day's return
         X_test = X_test.copy()
         y_test = y_test.copy()
-        #
-        #
-        #
+
         # print(y_test.head())
         X_test.index = pd.to_datetime(X_test.index)
         y_test.index = pd.to_datetime(y_test.index)
@@ -218,6 +229,7 @@ def train_OLS(threshold_pct=0.1):
             strong_acc_test,
             train_threshold,
             test_threshold,
+            pvalue,
         ) = ols_regression(
             df_train[["Excess Return"]],
             df_train.iloc[:, -1],
@@ -231,7 +243,10 @@ def train_OLS(threshold_pct=0.1):
         test_accuracies[country] = strong_acc_test
         train_thresholds[country] = train_threshold
         test_thresholds[country] = test_threshold
-
+        pvalues[country] = pvalue
+    pvalues = pd.DataFrame(pvalues).T
+    pvalues["Excess Returns p-value"] = pvalues["Excess Return"]
+    pvalues = pvalues[["Excess Returns p-value"]]
     return (
         train_r2s,
         test_r2s,
@@ -239,6 +254,7 @@ def train_OLS(threshold_pct=0.1):
         test_accuracies,
         train_thresholds,
         test_thresholds,
+        pvalues,
     )
 
 
