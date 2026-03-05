@@ -198,7 +198,7 @@ def prepare_fx_carry_data(
 ):
 
     yields = pd.read_excel(DATA_DIR / "fwd_yield_ann.xlsx", parse_dates=["Dates"])
-    yields = yields.rename(columns={"Dates": "date"})
+    yields = yields.rename(columns={"Dates": "date", "IRNI1M Curncy": "INRI1M Curncy", "KWNI1M Curncy": "KRWI1M Curncy"})
     yields = yields.set_index("date")
     yields.columns = yields.columns.str.replace("I1M Curncy", "", regex=False)
     yields = yields.reindex(sorted(yields.columns), axis=1)

@@ -57,7 +57,12 @@ cds = cds.rename(columns={
     "BRAZIL CDS USD SR 5Y D14 Corp": "BRL",
     "MEX CDS USD SR 5Y D14 Corp": "MXN",
     "JGB CDS USD SR 5Y D14 Corp": "JPY",
+    "KOREA CDS USD SR 5Y D14 Corp": "KRW",
+    "SINGP CDS USD SR 5Y D14 Corp": "SGD",
+    "HONGK CDS USD SR 5Y D14 Corp": "HKD",
+    "INDIA CDS USD SR 1Y D14 Corp": "INR"
 })
+
 cds = cds.reindex(sorted(cds.columns), axis=1)
 cds = cds.set_index("date")
 
@@ -68,8 +73,8 @@ print(cds.head())
 # --- Regression Results ---
 
 # --- currency sets ---
-ccy_all = ["AUD", "CAD", "GBP", "JPY", "MXN", "ZAR"]
-ccy_cds = ["JPY", "MXN", "ZAR"]
+ccy_all = ["AUD", "CAD", "GBP", "JPY", "SEK", "NOK", "CHF", "NZD", "MXN", "ZAR", "KRW", "SGD", "HKD", "INR"]
+ccy_cds = ["JPY", "MXN", "ZAR", "KRW", "SGD", "HKD", "INR"]
 
 # =========================
 # 1) MAIN: Stage 1 without CDS (full sample)
@@ -79,7 +84,7 @@ res_main, betas_main = stage1_panel_regression_cds(
     carry=carry[ccy_all],
     dollar=dollar,
     cds=None,
-    base_ccy="AUD",
+    base_ccy="CAD",
 )
 
 u_main = res_main.resids.unstack("currency")   # dates x currencies
@@ -114,7 +119,14 @@ print("\nDollar betas (with CDS):\n", betas_cds)
 
 print("\n=== Stage 1 (Without CDS subset) ===")
 stage1_res_path = DATA_DIR / "stage1_residuals.csv"
-res, betas = stage1_panel_regression(fx_ret, carry, dollar, cds=None)
+res, betas = stage1_panel_regression_cds(
+    rx=fx_ret[ccy_all],
+    carry=carry[ccy_all],
+    dollar=dollar,
+    cds=None,
+    base_ccy="CAD",
+)
+print(res.summary)
 u_hat_wide = res.resids.unstack("currency")
 u_hat_wide.index.name = "date"
 u_hat_wide.to_csv(stage1_res_path)
