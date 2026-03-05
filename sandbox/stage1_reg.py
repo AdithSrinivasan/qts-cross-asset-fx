@@ -18,7 +18,7 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 FX_DATA = DATA_DIR / "fx_data"
 
 START_DATE = pd.to_datetime("2022-01-03")
-END_DATE = pd.to_datetime("2024-09-30")
+END_DATE = pd.to_datetime("2026-01-01")
 
 # --- FX Excess Returns ---
 fx_ret = calculate_fx_excess_returns(DATA_DIR, FX_DATA, START_DATE, END_DATE)
