@@ -1,7 +1,12 @@
 import pandas as pd
 
 class Backtester:
-    def __init__(self, signals_df, trading_cost=0.01, starting_cash=100000, q_trading_thres=0.2, fx_look_ahead=1, leverage_multiplier=5.0):
+    def __init__(self, signals_df,
+                 trading_cost=0.01,
+                 starting_cash=100000,
+                 q_trading_thres=0.2,
+                 fx_look_ahead=1,
+                 leverage_multiplier=5.0):
         self.signals_df = signals_df.copy()
         self.trading_cost = trading_cost
         self.q_trading_thres = q_trading_thres
@@ -10,6 +15,7 @@ class Backtester:
 
         self.trade_log = [] # STRUCTURE: [{ts:, symbol:, side:, quantity:, price:, trading_cost:, effective_price: }
         self.value_log = [] # STRUCTURE: [{ts:, net_equity:, equity:, cash:, buying_power: }
+        self.positions = [] # STRUCTURE: [{
 
         self.cash = starting_cash
         self.buying_power = self.cash * leverage_multiplier
