@@ -26,11 +26,20 @@ DEFAULT_MAX_RANKS = 4
 # to Databento continuous symbols such as 6B.c.0.
 DEFAULT_COUNTRY_TO_SYMBOL = {
     "Mexico": "6M",
+    "Brazil": "6L",
     "South Africa": "6Z",
     "Japan": "6J",
     "Australia": "6A",
     "Canada": "6C",
     "UK": "6B",
+    "Hong Kong": "6H",
+    "India": "IR",
+    "South Korea": "KRW",
+    "Norway": "NOK",
+    "Sweden": "SEK",
+    "Singapore": "SGD",
+    "Switzerland": "6S",
+    "New Zealand": "6N",
 }
 
 
@@ -129,7 +138,27 @@ def load_signal_dates_and_countries(
     signals_path: Path,
     requested_countries: list[str] | None,
 ) -> tuple[pd.DatetimeIndex, list[str]]:
-    signals = pd.read_csv(signals_path, parse_dates=["date"])
+    if signals_path.exists():
+        signals = pd.read_csv(signals_path, parse_dates=["date"])
+    elif signals_path.name == "rf_predictions.csv":
+        fallback_paths = [
+            signals_path.with_name("rf_train_predictions.csv"),
+            signals_path.with_name("rf_test_predictions.csv"),
+        ]
+        existing = [path for path in fallback_paths if path.exists()]
+        if not existing:
+            raise FileNotFoundError(
+                f"Could not find {signals_path} or train/test fallback files in {signals_path.parent}"
+            )
+        frames = [pd.read_csv(path, parse_dates=["date"]) for path in existing]
+        signals = pd.concat(frames, axis=0, ignore_index=True)
+        print(
+            f"{signals_path} not found. Using fallback file(s): "
+            + ", ".join(str(path) for path in existing)
+        )
+    else:
+        raise FileNotFoundError(f"Signals file not found: {signals_path}")
+
     if "date" not in signals.columns:
         raise ValueError(f"Expected a 'date' column in {signals_path}")
 
