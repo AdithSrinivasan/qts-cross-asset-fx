@@ -1,6 +1,7 @@
 import pandas as pd
 from pandas import DataFrame
 from portfolio import Portfolio
+from hedge import get_equity_returns, get_hedge_returns
 
 class Backtester:
     def __init__(self, 
@@ -46,6 +47,8 @@ class Backtester:
         self.equity = starting_equity
         self.backtest_ran = False
         self.total_trading_fees = 0
+        
+        self.hedge_returns = None
 
 
     def run_backtest(self):
@@ -115,17 +118,38 @@ class Backtester:
                     if (cur_qty > 0 and return_prediction <= exit_threshold) or (cur_qty < 0 and return_prediction >= -exit_threshold):
                         self.portfolio.liquidate_position(country=country)
 
-
-                # TODO add margin calling
-
                 # TODO call hedging function to update hedge (be sure to include in PL)
 
-            # Update equity TODO should this and the portfolio logging be earlier?
+
+                # Calculate new net PL
+                new_pl = self.portfolio.get_today_pnl(country=country, date=date, new_p=fx_price)
+                day_pl += new_pl
+
+            # Update equity 
             self.equity += day_pl
             
+            # TODO call hedging function to update hedge (be sure to include in PL)
+            if self.hedge_positions:
+                # get the dollar return at that date
+                dollar_return = self.get_dollar_return(date=date)
+                
+                # hedge pl is our ratio multiplied by our exposure and our dollar return
+                hedge_pl = self.hedge_ratio * self.portfolio.get_total_exposure() * dollar_return
+            else:
+                hedge_pl = 0.0
+            day_pl += hedge_pl
+
             # add to portfolio log
             target_total_exposure = self.equity * self.leverage_multiplier
             self.portfolio_log.append({"date": date, "equity": self.equity, "pl": day_pl, "margin_used": self.portfolio.get_margin_used(), "total_exposure": self.portfolio.get_total_exposure(), "target_total_exposure": target_total_exposure, "total_trading_fees": self.total_trading_fees, "num_positions": self.portfolio.get_num_positions(), "country_pnl": day_country_pnl})
+
+
+    def get_dollar_return(self, date):
+        if self.hedge_returns is None:
+            hedge_returns = get_hedge_returns()
+            hedge_returns.index = pd.to_datetime(hedge_returns.index)
+            self._hedge_returns = hedge_returns["hedge_returns"].to_dict()
+        return float(self.hedge_returns.get(pd.to_datetime(date), 0.0))
 
 
     def get_backtest_results(self):
@@ -147,11 +171,12 @@ def construct_threshold_dictionary(df: pd.DataFrame, is_train: bool) -> dict:
         Returns:
             dict: dictionary of (key: Country (string), and value: float (threshold value))
         """
+        # print(df.columns)
         if "Country" not in df.columns:
             raise ValueError("Countries to index by not in dataframe.")
-        if is_train and  "Train Threshold" not in df.columns:
+        if is_train and  not ("Train Threshold" in df.columns or "Train_Threshold" in df.columns):
             raise ValueError("Train Threhshold column by not in dataframe.")
-        if not is_train and  "Test Threshold" not in df.columns:
+        if not is_train and  not ("Test Threshold" in df.columns or "Test_Threshold" in df.columns):
             raise ValueError("Test Threshold column not in dataframe.")
         
         # final dictionary we'll return

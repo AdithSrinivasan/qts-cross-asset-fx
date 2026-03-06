@@ -146,7 +146,7 @@ class Portfolio:
             country (str): tells us which country
             date (str): used in position.prev_prices to 
             ensure the associated price on that date didn't exist beforehand.
-
+        
         Returns:
             float: today's profit and loss for the existing country
         """
@@ -154,8 +154,10 @@ class Portfolio:
         # check if the country exists for proper pnl usage
         if country not in self.positions:
             return 0.0
-
         # if so, calculate today's profit and loss!
         return self.positions[country].calc_today_pnl(date, new_p)
-        
-    
+
+
+# daily per position
+# dataframe: cumulative returns per position that we have
+# for each active position, active

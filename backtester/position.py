@@ -11,12 +11,10 @@ class Position:
     Tracks the aggregate Position for a country for all trades that occur during
     backtesting.
     """
-    
     def __init__(self, country):
         """
         
         Initializes our Position Class
-
         Args:
             country (str): the country we're working with
         
@@ -108,4 +106,3 @@ class Position:
     # Update position (buy/sell)
     def get_country(self):
         return self.country
-    

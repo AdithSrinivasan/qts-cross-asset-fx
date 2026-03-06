@@ -49,21 +49,19 @@ def main():
     # compute hedge beta
     hedge_beta = compute_hedge_beta(backtest_portfolio_log)
     print(hedge_beta)
-
+    
     # Now compute hedge PnL
-    hedge_bt = Backtester(
-        return_predictions=train_predictions,
-        fx_futures_panel=fx_futures_panel,
-        entry_thresholds=entry_thresholds,
-        exit_thresholds=exit_thresholds,
-        fx_contract_specs=fx_contract_specs,
-        is_train=True,
-        contract_cost_fixed=1.6,
-        starting_equity=2_000_000,
-        leverage_multiplier=5.0,
-        hedge_positions=True,
-        hedge_ratio=hedge_beta,
-    )
+    hedge_bt = Backtester(return_predictions=train_predictions,
+                            fx_futures_panel=fx_futures_panel,
+                            entry_thresholds=entry_thresholds,
+                            exit_thresholds=exit_thresholds,
+                            fx_contract_specs=fx_contract_specs,
+                            is_train=True,
+                            contract_cost_fixed=0.07,
+                            starting_equity=2_000_000,
+                            leverage_multiplier=5.0,
+                            hedge_positions=True,
+                            hedge_ratio=hedge_beta)
 
 
 if __name__ == "__main__":
