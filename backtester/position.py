@@ -67,6 +67,9 @@ class Position:
         """        
         return self.notional
     
+    def get_margin(self):
+        return self.margin
+    
     def get_quantity(self) -> float:
         """
         
@@ -96,7 +99,7 @@ class Position:
             return 0.0
         
         # we calculate pnl by this formula: net quantity
-        pnl = self.net_qty * self.notional * (new_price - self.last_price)
+        pnl = self.notional * (new_price - self.last_price)
         # add date to previous prices and update last price to be the new_price given in the function
         self.prev_prices[date] = new_price
         self.last_price = new_price

@@ -63,7 +63,7 @@ class Portfolio:
         # compute the notional for each position. don't need country, just need notional.
         for _, position in self.positions.items():
             # get that notional value for the position. Pre-caclulated and updated during update() calls in update_position()
-            total_margin += position.get_notional()
+            total_margin += position.get_margin()
         # return our portfolio's total margin
         return total_margin
     

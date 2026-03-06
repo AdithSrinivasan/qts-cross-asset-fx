@@ -110,6 +110,8 @@ class Backtester:
             
             # add to equity log
             self.equity_log.append({"date": date, "equity": self.equity})
+            
+            
 
 
     def get_backtest_results(self):
@@ -151,6 +153,8 @@ def construct_threshold_dictionary(df: pd.DataFrame, is_train: bool) -> dict:
             for index, row in df.iterrows():
                 d[row["Country"]] = row["Test_Threshold"]
         return d
+
+
 
 
 def parse_contract_specs(fx_contract_specs: pd.DataFrame):
