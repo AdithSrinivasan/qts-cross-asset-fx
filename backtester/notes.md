@@ -1,0 +1,4 @@
+- Contract size should be interns of USD not foreign currency
+- Need to update prices everyday
+- Using last price to get total exposure which is wrong
+- Drop countries with no data

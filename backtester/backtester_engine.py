@@ -61,7 +61,7 @@ class Backtester:
                 entry_threshold = self.entry_thresholds[country]
                 exit_threshold = self.exit_thresholds[country]
                 
-                # Check that we have fx price for this date 
+                # Check that we have fx price for this date and update portfolio price for asset
                 if (
                     date not in self.fx_futures_panel.index
                     or country not in self.fx_futures_panel.columns
@@ -70,6 +70,7 @@ class Backtester:
                     print(f"Skipping {date} {country} because FX data missing")
                     continue
                 fx_price = self.fx_futures_panel.loc[date, country]
+                self.portfolio.update_asset_price(country=country, new_price=fx_price, date=date)
 
                 margin_used = self.portfolio.get_margin_used()
                 free_margin = self.equity - margin_used
@@ -98,9 +99,8 @@ class Backtester:
                         self.total_trading_fees += trading_cost
 
                         # Log trade
-                        self.portfolio.update_position(country=country, trade_qty=trade_qty, notional=trade_value, initial_margin=trade_margin)
+                        self.portfolio.update_position(country=country, price=fx_price, trade_qty=trade_qty, contract_multiplier=contract_multiplier, contract_initial_margin=self.initial_margin_per_contract[country], contract_maintenance_margin=None)
                         self.trade_log.append({"date": date, "country": country, "qty": trade_qty, "trade_price": fx_price, "trade_value": trade_value, "trade_margin": trade_margin, "trading_cost": trading_cost})
-
 
                 # For existing positions check if price is below exit band
                 cur_position = self.portfolio.get_position(country=country)
@@ -109,15 +109,17 @@ class Backtester:
                     if (cur_qty > 0 and return_prediction <= exit_threshold) or (cur_qty < 0 and return_prediction >= -exit_threshold): 
                         self.portfolio.liquidate_position(country=country)
 
-
-                # TODO add margin calling
-
-                # TODO call hedging function to update hedge (be sure to include in PL)
-
-
                 # Calculate new net PL TODO should this be earlier?
-                new_pl = self.portfolio.get_today_pnl(country=country, date=date, new_p=fx_price)
+                new_pl = self.portfolio.get_today_pnl(country=country)
                 day_pl += new_pl
+
+            # TODO add margin calling
+            # if free_margin < total_maintence_margin:
+            #     country_max_loss = None
+            #     for country in self.return_predictions.columns:
+
+
+            # TODO call hedging function to update hedge (be sure to include in PL)
 
             # Update equity TODO should this and the portfolio logging be earlier?
             self.equity += day_pl

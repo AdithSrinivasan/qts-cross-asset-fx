@@ -12,7 +12,7 @@ class Portfolio:
         """
         self.positions = {}
     
-    def update_position(self, country, trade_qty: float, notional, initial_margin):
+    def update_position(self, country, trade_qty, price, contract_multiplier, contract_initial_margin, contract_maintenance_margin):
         """
         If we make a new trade for a country, update it accordingly by calling 
         position.update(trade quantity, notional value, initial margin).
@@ -37,14 +37,14 @@ class Portfolio:
         # make sure we're instantiating the value to self.positions
         if country not in self.positions:
             # create new position object in self.positions, with key to each country
-            self.positions[country] = Position(country)
+            self.positions[country] = Position(country, price, contract_multiplier, contract_initial_margin, contract_maintenance_margin)
         # don't add updates with no trade quantity
         if trade_qty == 0.0:
             return
         # get pointer to current aggregate position for the country that
         position = self.positions[country]
         # call position.update() to update notional position. this handles the main functionality
-        position.update(trade_qty, notional, initial_margin)
+        position.update_position(trade_qty)
         
     
     def get_margin_used(self) -> float:
@@ -124,16 +124,16 @@ class Portfolio:
         """      
         exposure = 0.0
         for _, position in self.positions.items():
-            exposure += position.get_notional()
+            exposure += position.get_exposure()
         return exposure
     
     def get_current_country_exposure(self, country):
         if country not in self.positions:
             return 0.0
         position = self.positions[country]
-        return position.get_notional()
+        return position.get_exposure()
     
-    def get_today_pnl(self, country, date, new_p) -> float:
+    def get_today_pnl(self, country) -> float:
         """
         country date and price
         Calculates net P&L for the overall Portfolio.
@@ -141,8 +141,6 @@ class Portfolio:
         
         Inputs:
             country (str): tells us which country
-            date (str): used in position.prev_prices to 
-            ensure the associated price on that date didn't exist beforehand.
 
         Returns:
             float: today's profit and loss for the existing country
@@ -153,6 +151,11 @@ class Portfolio:
             return 0.0
 
         # if so, calculate today's profit and loss!
-        return self.positions[country].calc_today_pnl(date, new_p)
-        
-    
+        return self.positions[country].calc_pnl()
+
+    def update_asset_price(self, country, new_price, date):
+        # check if the country exists in order to update price
+        if country not in self.positions:
+            return
+
+        self.positions[country].update_price(new_price, date)
