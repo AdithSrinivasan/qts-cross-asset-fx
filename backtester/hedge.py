@@ -83,7 +83,63 @@ def compute_hedge_beta(portfolio_log) -> float:
     clean_df = df[['equity_returns', 'hedge_returns']].dropna()
 
     # Check if you still have data left and then use np.polyfit to get the beta.
-    if not clean_df.empty:
-        beta, alpha = np.polyfit(clean_df['equity_returns'], clean_df['hedge_returns'], 1)
-    # return our found beta
-    return beta
+    if len(clean_df) < 2:
+        return 0.0
+    
+    # convert hedge and equity returns to numpy
+    x = clean_df["hedge_returns"].to_numpy()
+    y = clean_df["equity_returns"].to_numpy()
+
+    denom = np.sum(x ** 2)
+    if denom == 0:
+        return 0.0
+
+    beta = np.sum(x * y) / denom
+    return float(beta)
+
+
+#p-value and r**2?
+    # 2022 - 2025 --> massive rates cut
+
+
+def compute_hedge_beta_with_intercept(portfolio_log) -> float:
+    """
+    Computes the hedged_beta allowing for an intercept (alpha).
+
+    Args:
+        portfolio_log (list[dict]): list of outputted portfolio log from
+        backtesting with no hedge
+
+    Returns:
+        float: our beta
+    """
+
+    # use helper functions to get the hedge and equity returns
+    hedge_returns = get_hedge_returns()
+    equity_returns = get_equity_returns(portfolio_log=portfolio_log)
+
+    # convert the equity returns index to a Datetime index for merging
+    equity_returns.index = pd.to_datetime(equity_returns.index)
+
+    # merge on indexes in an inner merge
+    df = hedge_returns.merge(equity_returns, left_index=True, right_index=True, how='inner')
+
+    # drop na for regressing
+    clean_df = df[['equity_returns', 'hedge_returns']].dropna()
+
+    # Check if you still have data left and then compute the beta with intercept.
+    if len(clean_df) < 2:
+        return 0.0
+
+    # convert hedge and equity returns to numpy and mean-center them
+    x = clean_df["hedge_returns"].to_numpy()
+    y = clean_df["equity_returns"].to_numpy()
+    x = x - x.mean()
+    y = y - y.mean()
+
+    denom = np.sum(x ** 2)
+    if denom == 0:
+        return 0.0
+
+    beta = np.sum(x * y) / denom
+    return float(beta)

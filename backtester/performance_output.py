@@ -1,8 +1,8 @@
 import math
-import matplotlib.pyplot as plt
+
 import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
 
 
 def print_portfolio_stats(equity_history, trades=None):
@@ -38,7 +38,6 @@ def print_portfolio_stats(equity_history, trades=None):
         print("Could not compute returns from equity history.")
         return
 
-    returns = [r for r in returns if r != 0]
     start_equity = equities[0]
     end_equity = equities[-1]
     total_return = (end_equity / start_equity) - 1.0 if start_equity != 0 else 0.0
@@ -57,13 +56,10 @@ def print_portfolio_stats(equity_history, trades=None):
     if vol > 0:
         sharpe = (avg_return / vol) * math.sqrt(252)
 
-    # downside deviation for Sortino
+    # downside deviation for Sortino (target return = 0)
     downside_returns = [r for r in returns if r < 0]
-    if len(downside_returns) > 1:
-        downside_mean = sum(downside_returns) / len(downside_returns)
-        downside_variance = sum((r - downside_mean) ** 2 for r in downside_returns) / (
-            len(downside_returns) - 1
-        )
+    if len(downside_returns) >= 1:
+        downside_variance = sum(r ** 2 for r in downside_returns) / len(downside_returns)
         downside_dev = math.sqrt(downside_variance)
     else:
         downside_dev = 0.0
@@ -84,10 +80,6 @@ def print_portfolio_stats(equity_history, trades=None):
             drawdown = (eq / running_peak) - 1.0
             max_drawdown = min(max_drawdown, drawdown)
 
-    # skewness and excess kurtosis
-    skewness = skew(returns)
-    kurt = kurtosis(returns)
-
     # if len(returns) >= 3 and vol > 0:
     #     n = len(returns)
     #     m = avg_return
@@ -100,11 +92,11 @@ def print_portfolio_stats(equity_history, trades=None):
     #         skew = m3 / (m2**1.5)
     #         kurt = (m4 / (m2**2)) - 3.0
 
-    print(returns)
-    win_rate = sum(1 for r in returns if r > 0) / len(returns)
-    wins = [r for r in returns if r > 0]
+    active_returns = [r for r in returns if r != 0]
+    win_rate = sum(1 for r in active_returns if r > 0) / len(active_returns) if active_returns else 0.0
+    wins = [r for r in active_returns if r > 0]
     avg_win = sum(wins) / len(wins) if wins else 0
-    losses = [r for r in returns if r < 0]
+    losses = [r for r in active_returns if r < 0]
     avg_loss = sum(losses) / len(losses) if losses else 0
     best_period = max(returns)
     worst_period = min(returns)
@@ -134,8 +126,53 @@ def print_portfolio_stats(equity_history, trades=None):
             f"Total Trading Fees:  {float(equity_history[-1]['total_trading_fees']):,.2f}"
         )
 
+def plot_free_margin_vs_total_maintenance_margin(equity_history):
+    if not equity_history:
+        print("No equity history found.")
+        return
 
-import matplotlib.pyplot as plt
+    sample = equity_history[0]
+    time_key = None
+    for key in ["ts", "date", "timestamp"]:
+        if key in sample:
+            time_key = key
+            break
+
+    required_keys = ("equity", "margin_used", "total_maintenance_margin")
+    if not all(all(k in row for k in required_keys) for row in equity_history):
+        print(
+            "Skipping free margin vs maintenance margin plot: required fields missing."
+        )
+        return
+
+    if time_key is not None:
+        timestamps = pd.to_datetime(
+            [row[time_key] for row in equity_history], errors="coerce"
+        )
+    else:
+        timestamps = list(range(len(equity_history)))
+
+    free_margin = [float(row["equity"]) - float(row["margin_used"]) for row in equity_history]
+    total_maintenance_margin = [float(row["total_maintenance_margin"]) for row in equity_history]
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(timestamps, free_margin, label="Free Margin")
+    plt.plot(timestamps, total_maintenance_margin, label="Total Maintenance Margin")
+    plt.title("Free Margin vs Total Maintenance Margin")
+    plt.xlabel("Time")
+    plt.ylabel("Value")
+    plt.legend()
+
+    if time_key is not None:
+        locator = mdates.AutoDateLocator(minticks=6, maxticks=50)
+        formatter = mdates.ConciseDateFormatter(locator)
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formatter)
+        plt.gcf().autofmt_xdate()
+
+    plt.tight_layout()
+    plt.show()
 
 
 def plot_portfolio_history(equity_history, trades=None):
@@ -242,23 +279,8 @@ def plot_portfolio_history(equity_history, trades=None):
     else:
         print("Skipping PnL plots: 'pl' not found in equity history.")
 
-    # Plot free margin (equity - margin_used)
-    if all(("equity" in row and "margin_used" in row) for row in equity_history):
-        free_margin = [
-            float(row["equity"]) - float(row["margin_used"]) for row in equity_history
-        ]
-        plt.figure(figsize=(12, 6))
-        plt.plot(timestamps, free_margin, label="Free Margin")
-        plt.title("Free Margin Over Time")
-        plt.xlabel("Time")
-        plt.ylabel("Free Margin")
-        plt.legend()
-        _format_time_axis(plt.gca())
-        plt.gcf().autofmt_xdate()
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("Skipping free margin plot: 'equity' or 'margin_used' missing.")
+    # Plot free margin against maintenance margin
+    plot_free_margin_vs_total_maintenance_margin(equity_history)
 
     # Plot total exposure and target total exposure
     if all(
@@ -303,3 +325,42 @@ def plot_portfolio_history(equity_history, trades=None):
         plt.show()
     else:
         print("Skipping trading fees plot: 'total_trading_fees' missing.")
+
+    # Plot number of open positions over time
+    if all("num_positions" in row for row in equity_history):
+        num_positions = [int(row["num_positions"]) for row in equity_history]
+        plt.figure(figsize=(12, 4))
+        plt.step(timestamps, num_positions, where="post", label="Open Positions")
+        plt.title("Number of Open Positions Over Time")
+        plt.xlabel("Time")
+        plt.ylabel("Positions")
+        plt.legend()
+        _format_time_axis(plt.gca())
+        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("Skipping positions plot: 'num_positions' missing.")
+
+    # Plot cumulative PnL per country (return decomposition)
+    if all("country_pnl" in row for row in equity_history):
+        countries = list(equity_history[0]["country_pnl"].keys())
+        fig, ax = plt.subplots(figsize=(12, 6))
+        for country in countries:
+            daily = [float(row["country_pnl"].get(country, 0.0)) for row in equity_history]
+            cumulative = []
+            running = 0.0
+            for v in daily:
+                running += v
+                cumulative.append(running)
+            ax.plot(timestamps, cumulative, label=country)
+        ax.set_title("Cumulative PnL by Country")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Cumulative PnL")
+        ax.legend(loc="upper left", ncol=2, fontsize=8)
+        _format_time_axis(ax)
+        fig.autofmt_xdate()
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("Skipping country PnL plot: 'country_pnl' missing.")

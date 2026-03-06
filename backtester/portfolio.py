@@ -12,7 +12,7 @@ class Portfolio:
         """
         self.positions = {}
     
-    def update_position(self, country, trade_qty: float, notional, initial_margin):
+    def update_position(self, country, trade_qty, price, contract_multiplier, contract_initial_margin, contract_maintenance_margin):
         """
         If we make a new trade for a country, update it accordingly by calling 
         position.update(trade quantity, notional value, initial margin).
@@ -37,14 +37,14 @@ class Portfolio:
         # make sure we're instantiating the value to self.positions
         if country not in self.positions:
             # create new position object in self.positions, with key to each country
-            self.positions[country] = Position(country)
+            self.positions[country] = Position(country, price, contract_multiplier, contract_initial_margin, contract_maintenance_margin)
         # don't add updates with no trade quantity
         if trade_qty == 0.0:
             return
         # get pointer to current aggregate position for the country that
         position = self.positions[country]
         # call position.update() to update notional position. this handles the main functionality
-        position.update(trade_qty, notional, initial_margin)
+        position.update_position(trade_qty)
         
     
     def get_margin_used(self) -> float:
@@ -61,10 +61,27 @@ class Portfolio:
         # compute the notional for each position. don't need country, just need notional.
         for _, position in self.positions.items():
             # get that notional value for the position. Pre-caclulated and updated during update() calls in update_position()
-            total_margin += position.get_margin()
+            total_margin += position.get_margin_used()
         # return our portfolio's total margin
         return total_margin
-    
+
+    def get_maintenance_margin_used(self) -> float:
+        """
+        Aggregates the maintenance margin for all positions in all countries
+
+        Inputs:
+            None, besides the Portfolio object we have
+
+        Output:
+            float telling us the total margin used in the portfolio
+        """
+        total_maintenance = 0.0
+        for _, position in self.positions.items():
+            # get that notional value for the position. Pre-caclulated and updated during update() calls in update_position()
+            total_maintenance += position.get_maintenance_margin()
+        # return our portfolio's total maintenance margin
+        return total_maintenance
+
     def get_position(self, country):
         """
         Gets the Position object for a country 
@@ -124,16 +141,19 @@ class Portfolio:
         """      
         exposure = 0.0
         for _, position in self.positions.items():
-            exposure += position.get_notional()
+            exposure += position.get_exposure()
         return exposure
     
     def get_current_country_exposure(self, country):
         if country not in self.positions:
             return 0.0
         position = self.positions[country]
-        return position.get_notional()
+        return position.get_exposure()
     
-    def get_today_pnl(self, country, date, new_p) -> float:
+    def get_num_positions(self) -> int:
+        return len(self.positions)
+
+    def get_today_pnl(self, country) -> float:
         """
         country date and price
         Calculates net P&L for the overall Portfolio.
@@ -141,8 +161,6 @@ class Portfolio:
         
         Inputs:
             country (str): tells us which country
-            date (str): used in position.prev_prices to 
-            ensure the associated price on that date didn't exist beforehand.
 
         Returns:
             float: today's profit and loss for the existing country
@@ -151,8 +169,15 @@ class Portfolio:
         # check if the country exists for proper pnl usage
         if country not in self.positions:
             return 0.0
-
         # if so, calculate today's profit and loss!
-        return self.positions[country].calc_today_pnl(date, new_p)
-        
-    
+        return self.positions[country].calc_pnl()
+
+    def update_asset_price(self, country, new_price, date):
+        # check if the country exists in order to update price
+        if country not in self.positions:
+            return
+
+        self.positions[country].update_price(new_price, date)
+
+    def get_open_asset_names(self):
+        return list(self.positions.keys())
