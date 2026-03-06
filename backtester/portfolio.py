@@ -108,7 +108,7 @@ class Portfolio:
         # leave function body
         return None
     
-    def get_current_exposure(self) -> float:
+    def get_total_exposure(self) -> float:
         """
         Tells us current exposure.
         
@@ -126,6 +126,12 @@ class Portfolio:
         for _, position in self.positions.items():
             exposure += position.get_notional()
         return exposure
+    
+    def get_current_country_exposure(self, country):
+        if country not in self.positions:
+            return 0.0
+        position = self.position[country]
+        return position.get_notional()
     
     def get_today_pnl(self, country, date, new_p) -> float:
         """

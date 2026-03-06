@@ -122,7 +122,7 @@ class Backtester:
             # add to portfolio log
             target_asset_exposure = self.equity * self.leverage_multiplier * self.position_weight_ratio / len(self.return_predictions.columns)
             self.portfolio_log.append({"date": date, "equity": self.equity, "pl": day_pl, "margin_used": self.portfolio.get_margin_used(), "total_exposure": self.portfolio.get_current_exposure(), "target_asset_exposure": target_asset_exposure})
-            
+
 
     def get_backtest_results(self):
         return self.trade_log, self.portfolio_log
