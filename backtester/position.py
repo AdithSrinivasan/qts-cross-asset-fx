@@ -32,7 +32,8 @@ class Position:
         self.prices = {}
         self.exposure = 0.0
         self.net_qty = 0.0
-        self.margin = 0.0
+        self.margin_used = 0.0
+        self.maintenance_margin = 0.0
         # Maintence margin needed (TODO imlement in future)
         
         self.maintenance_margin_needed = 0.0
@@ -52,7 +53,7 @@ class Position:
         # add date to previous prices and update last price to be the new_price given in the function
         self.prices[date] = new_price
         self.last_price = new_price
-        self.exposure = self.net_qty * self.last_price * self.contract_multiplier
+        self.exposure = abs(self.net_qty) * self.last_price * self.contract_multiplier
     
     def update_position(self, trade_qty):
         """
@@ -62,8 +63,9 @@ class Position:
             trade_qty (_type_): _description_
         """
         self.net_qty += trade_qty
-        self.exposure = self.net_qty * self.last_price * self.contract_multiplier
-        self.margin = self.net_qty * self.contract_initial_margin
+        self.exposure = abs(self.net_qty) * self.last_price * self.contract_multiplier
+        self.margin_used = abs(self.net_qty) * self.contract_initial_margin
+        self.maintenance_margin = abs(self.net_qty) * self.contract_maintenance_margin
 
     def get_exposure(self):
         """_summary_
@@ -73,8 +75,11 @@ class Position:
         """        
         return self.exposure
     
-    def get_margin(self):
-        return self.margin
+    def get_margin_used(self):
+        return self.margin_used
+
+    def get_maintenance_margin(self):
+        return self.maintenance_margin
     
     def get_quantity(self) -> float:
         """

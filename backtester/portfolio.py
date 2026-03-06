@@ -61,9 +61,26 @@ class Portfolio:
         # compute the notional for each position. don't need country, just need notional.
         for _, position in self.positions.items():
             # get that notional value for the position. Pre-caclulated and updated during update() calls in update_position()
-            total_margin += position.get_margin()
+            total_margin += position.get_margin_used()
         # return our portfolio's total margin
         return total_margin
+
+    def get_maintenance_margin_used(self) -> float:
+        """
+        Aggregates the maintenance margin for all positions in all countries
+
+        Inputs:
+            None, besides the Portfolio object we have
+
+        Output:
+            float telling us the total margin used in the portfolio
+        """
+        total_maintenance = 0.0
+        for _, position in self.positions.items():
+            # get that notional value for the position. Pre-caclulated and updated during update() calls in update_position()
+            total_maintenance += position.get_maintenance_margin()
+        # return our portfolio's total maintenance margin
+        return total_maintenance
     
     def get_position(self, country):
         """
@@ -159,3 +176,6 @@ class Portfolio:
             return
 
         self.positions[country].update_price(new_price, date)
+
+    def get_open_asset_names(self):
+        return list(self.positions.keys())
