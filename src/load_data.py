@@ -84,22 +84,6 @@ def prepare_bbg_data(
     return data
 
 
-def _read_series(path: Path, currency: str, invert: bool) -> pl.DataFrame:
-    series_code = path.stem
-    df = pl.read_csv(path, try_parse_dates=True).rename(
-        {"observation_date": "date", series_code: "rate_per_usd"}
-    )
-    # FRED encodes missing observations as "." — cast safely
-    df = df.with_columns(pl.col("rate_per_usd").cast(pl.Float64, strict=False))
-
-    if invert:
-        df = df.with_columns((1.0 / pl.col("rate_per_usd")).alias("rate_per_usd"))
-
-    return df.with_columns(pl.lit(currency).alias("currency")).select(
-        ["date", "currency", "rate_per_usd"]
-    )
-
-
 def load_fx_spot(
     data_dir: Path = DATA_DIR,
     start_date: str | None = None,
@@ -270,3 +254,21 @@ def calculate_fx_excess_returns(
 def read_signal_data(data_dir: Path = DATA_DIR):
     signals_df = pd.read_csv(data_dir / "rf_predictions.csv", index_col="date", parse_dates="date")
     return signals_df
+
+
+def load_fx_futures_data(data_dir: Path = DATA_DIR) -> pd.DataFrame:
+    base = Path(data_dir) / "futures_1m"                                                                                                                                                                                                           
+    files = list(base.rglob("*.csv"))                                                                                                                                                                                                
+    if not files:                                                                                                                                                                                                                    
+        return pd.DataFrame(columns=["ts_event", "close", "country"])                                                                                                                                                                
+                                                                                                                                                                                                                                    
+    frames = []                                                                                                                                                                                                                     
+    for f in files:
+        df = pd.read_csv(f, usecols=["ts_event", "close", "country"], parse_dates=["ts_event"])                                                                                                                                      
+        frames.append(df)
+
+    out = pd.concat(frames, ignore_index=True)
+    return out
+
+if __name__ == "__main__":
+    print(load_fx_futures_data())
