@@ -25,4 +25,10 @@ def get_hedge_returns():
 def compute_hedge_beta(portfolio_log):
     hedge_returns = get_hedge_returns()
     equity_returns = get_equity_returns(portfolio_log=portfolio_log)
-    pass
+    df = hedge_returns.merge(equity_returns, left_index=True, right_index=True, how='inner')
+    clean_df = df[['equity_returns', 'hedge_returns']].dropna()
+
+    # Check if you still have data left!
+    if not clean_df.empty:
+        beta, alpha = np.polyfit(clean_df['equity_returns'], clean_df['hedge_returns'], 1)
+        return beta

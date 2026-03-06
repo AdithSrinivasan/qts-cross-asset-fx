@@ -37,8 +37,8 @@ def main():
     # get the hedge asset returns using dollar etf
     
     # compute hedge beta
-    
-    hedge_beta = 0.0
+    hedge_beta = compute_hedge_beta(backtest_trade_log)
+    print(hedge_beta)
     
     # Now compute hedge PnL
     hedge_bt = Backtester(return_predictions=train_predictions,
