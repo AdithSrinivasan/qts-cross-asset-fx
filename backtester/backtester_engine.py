@@ -144,7 +144,7 @@ class Backtester:
                 dollar_return = self.get_dollar_return(date=date)
 
                 # hedge pl is our ratio multiplied by our exposure and our dollar return
-                hedge_pl = self.hedge_ratio * self.portfolio.get_total_exposure() * dollar_return
+                hedge_pl = self.hedge_ratio * self.portfolio.get_net_exposure() * dollar_return
             else:
                 hedge_pl = 0.0
             day_pl += hedge_pl

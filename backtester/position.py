@@ -74,6 +74,11 @@ class Position:
         """        
         return self.exposure
     
+    def get_directional_exposure(self):
+        if self.net_qty < 0.0:
+            return -self.exposure
+        return self.exposure
+    
     def get_margin_used(self):
         return self.margin_used
 
