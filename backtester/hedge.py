@@ -8,8 +8,9 @@ def get_equity_returns(equity_log):
 def get_hedge_returns():
     """
     """
-    hedge_log = pd.
-    hedge_returns = 
+    return
+    # hedge_log = pd.
+    # hedge_returns = 
 
 
 def compute_hedge_beta(equity_log):

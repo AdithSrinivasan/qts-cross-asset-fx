@@ -29,7 +29,7 @@ def main():
     # Display results
     backtest_trade_log, backtest_portfolio_log = backtester.get_backtest_results()
     print(backtest_portfolio_log, backtest_trade_log)
-    print_portfolio_stats(backtest_portfolio_log)
+    print_portfolio_stats(backtest_portfolio_log, backtest_trade_log)
     plot_portfolio_history(backtest_portfolio_log, backtest_trade_log)
     
     # get strategy returns. It'll give me a return strream I'll regress against hte hedge asset
