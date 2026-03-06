@@ -12,7 +12,7 @@ def main():
     fx_contract_specs = pd.read_csv("../data/fx_contract_specs.csv")
     fx_futures_panel = pd.read_csv("../data/fx_futures_panel.csv", index_col="date")
     
-
+    
     # Run backtesting simulation given parameters
     backtester = Backtester(return_predictions=train_predictions,
                             fx_futures_panel=fx_futures_panel,

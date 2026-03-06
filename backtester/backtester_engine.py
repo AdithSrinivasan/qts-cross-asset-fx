@@ -79,7 +79,7 @@ class Backtester:
                     contract_multiplier = self.contract_sizes[country]
 
                     target_asset_exposure = self.equity * self.leverage_multiplier * self.position_weight_ratio / num_assets
-                    current_asset_exposure = self.portfolio.get_current_exposure()
+                    current_asset_exposure = self.portfolio.get_total_exposure()
                     contract_value = fx_price * contract_multiplier
                     trade_qty = (target_asset_exposure - current_asset_exposure) / (contract_value + self.contract_cost_fixed)
                     trade_margin = trade_qty * self.initial_margin_per_contract[country]
@@ -119,7 +119,7 @@ class Backtester:
             
             # add to portfolio log
             target_asset_exposure = self.equity * self.leverage_multiplier * self.position_weight_ratio / len(self.return_predictions.columns)
-            self.portfolio_log.append({"date": date, "equity": self.equity, "pl": day_pl, "margin_used": self.portfolio.get_margin_used(), "total_exposure": self.portfolio.get_current_exposure(), "target_asset_exposure": target_asset_exposure})
+            self.portfolio_log.append({"date": date, "equity": self.equity, "pl": day_pl, "margin_used": self.portfolio.get_margin_used(), "total_exposure": self.portfolio.get_total_exposure(), "target_asset_exposure": target_asset_exposure})
 
 
     def get_backtest_results(self):
