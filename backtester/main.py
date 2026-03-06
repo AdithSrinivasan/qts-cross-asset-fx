@@ -12,10 +12,10 @@ def main():
     
 
     # Run backtesting simulation given parameters
-    backtester = Backtester(train_predictions=train_predictions, 
-                            test_predictions=test_predictions,
+    backtester = Backtester(return_predictions=train_predictions,
                             entry_thresholds=entry_thresholds,
-                            exit_thresholds=exit_thresholds)
+                            exit_thresholds=exit_thresholds,
+                            is_train=True)
     backtester.run_backtest()
 
     # Display results
