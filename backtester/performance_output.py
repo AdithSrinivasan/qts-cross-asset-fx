@@ -85,8 +85,8 @@ def print_portfolio_stats(equity_history, trades=None):
             max_drawdown = min(max_drawdown, drawdown)
 
     # skewness and excess kurtosis
-    skewness = skew(returns)
-    kurt = kurtosis(returns)
+    # skewness = skew(returns)
+    # kurt = kurtosis(returns)
 
     # if len(returns) >= 3 and vol > 0:
     #     n = len(returns)
