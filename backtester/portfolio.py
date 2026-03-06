@@ -169,7 +169,6 @@ class Portfolio:
         # check if the country exists for proper pnl usage
         if country not in self.positions:
             return 0.0
-
         # if so, calculate today's profit and loss!
         return self.positions[country].calc_pnl()
 

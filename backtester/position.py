@@ -16,7 +16,6 @@ class Position:
         """
         
         Initializes our Position Class
-
         Args:
             country (str): the country we're working with
         
@@ -54,7 +53,7 @@ class Position:
         self.prices[date] = new_price
         self.last_price = new_price
         self.exposure = abs(self.net_qty) * self.last_price * self.contract_multiplier
-    
+
     def update_position(self, trade_qty):
         """
         _summary_
@@ -110,4 +109,3 @@ class Position:
     # Update position (buy/sell)
     def get_country(self):
         return self.country
-    
