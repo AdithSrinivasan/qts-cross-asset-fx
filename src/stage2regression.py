@@ -6,7 +6,7 @@ import yfinance as yf
 from pathlib import Path
 import statsmodels.api as sm
 from sklearn.ensemble import RandomForestRegressor
-from src.load_data import prepare_bbg_data
+from load_data import prepare_bbg_data
 from pathlib import Path
 import matplotlib.pyplot as plt
 from plotnine import *
@@ -16,6 +16,36 @@ FX_DATA = DATA_DIR / "fx_data"
 
 START_DATE = "2022-01-01"
 END_DATE = "2026-01-01"
+
+
+def generate_thresholds(percentiles=0.9):
+    df = pd.read_csv(DATA_DIR / "rf_train_predictions.csv", index_col="date")
+    train_thresholds = {}
+    for col in df.columns:
+        threshold = df[col].abs().quantile(percentiles)
+        train_thresholds[col] = threshold
+    if percentiles == 0.9:
+        output_path = DATA_DIR / "rf_thresholds.csv"
+    elif percentiles == 0.8:
+        output_path = DATA_DIR / "rf_exit_thresholds.csv"
+    else:
+        raise ValueError(
+            "Unsupported percentiles value. Use 0.9 for entry thresholds or 0.8 for exit thresholds."
+        )
+    df_test = pd.read_csv(DATA_DIR / "rf_test_predictions.csv", index_col="date")
+    test_thresholds = {}
+    for col in df_test.columns:
+        threshold = df_test[col].abs().quantile(percentiles)
+        test_thresholds[col] = threshold
+
+    thresholds_df = pd.DataFrame(
+        {
+            "Country": list(train_thresholds.keys()),
+            "Train Threshold": list(train_thresholds.values()),
+            "Test Threshold": list(test_thresholds.values()),
+        }
+    )
+    thresholds_df.to_csv(output_path, index=True)
 
 
 def load_stage1_residuals():
@@ -441,7 +471,8 @@ def train_random_forest(threshold_pct=0.1):
     )
 
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
+    generate_thresholds()
 #     # Load stage 1 residuals
 #     stage1_residuals = load_stage1_residuals()
 #     print("Loaded Stage 1 residuals...")
