@@ -1,8 +1,8 @@
 import math
-import matplotlib.pyplot as plt
+
 import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
 
 
 def print_portfolio_stats(equity_history, trades=None):
@@ -38,7 +38,6 @@ def print_portfolio_stats(equity_history, trades=None):
         print("Could not compute returns from equity history.")
         return
 
-    returns = [r for r in returns if r != 0]
     start_equity = equities[0]
     end_equity = equities[-1]
     total_return = (end_equity / start_equity) - 1.0 if start_equity != 0 else 0.0
@@ -57,13 +56,10 @@ def print_portfolio_stats(equity_history, trades=None):
     if vol > 0:
         sharpe = (avg_return / vol) * math.sqrt(252)
 
-    # downside deviation for Sortino
+    # downside deviation for Sortino (target return = 0)
     downside_returns = [r for r in returns if r < 0]
-    if len(downside_returns) > 1:
-        downside_mean = sum(downside_returns) / len(downside_returns)
-        downside_variance = sum((r - downside_mean) ** 2 for r in downside_returns) / (
-            len(downside_returns) - 1
-        )
+    if len(downside_returns) >= 1:
+        downside_variance = sum(r ** 2 for r in downside_returns) / len(downside_returns)
         downside_dev = math.sqrt(downside_variance)
     else:
         downside_dev = 0.0
@@ -84,10 +80,6 @@ def print_portfolio_stats(equity_history, trades=None):
             drawdown = (eq / running_peak) - 1.0
             max_drawdown = min(max_drawdown, drawdown)
 
-    # skewness and excess kurtosis
-    # skewness = skew(returns)
-    # kurt = kurtosis(returns)
-
     # if len(returns) >= 3 and vol > 0:
     #     n = len(returns)
     #     m = avg_return
@@ -100,11 +92,11 @@ def print_portfolio_stats(equity_history, trades=None):
     #         skew = m3 / (m2**1.5)
     #         kurt = (m4 / (m2**2)) - 3.0
 
-    print(returns)
-    win_rate = sum(1 for r in returns if r > 0) / len(returns)
-    wins = [r for r in returns if r > 0]
+    active_returns = [r for r in returns if r != 0]
+    win_rate = sum(1 for r in active_returns if r > 0) / len(active_returns) if active_returns else 0.0
+    wins = [r for r in active_returns if r > 0]
     avg_win = sum(wins) / len(wins) if wins else 0
-    losses = [r for r in returns if r < 0]
+    losses = [r for r in active_returns if r < 0]
     avg_loss = sum(losses) / len(losses) if losses else 0
     best_period = max(returns)
     worst_period = min(returns)
@@ -133,9 +125,6 @@ def print_portfolio_stats(equity_history, trades=None):
         print(
             f"Total Trading Fees:  {float(equity_history[-1]['total_trading_fees']):,.2f}"
         )
-
-
-import matplotlib.pyplot as plt
 
 
 def plot_portfolio_history(equity_history, trades=None):
@@ -303,3 +292,42 @@ def plot_portfolio_history(equity_history, trades=None):
         plt.show()
     else:
         print("Skipping trading fees plot: 'total_trading_fees' missing.")
+
+    # Plot number of open positions over time
+    if all("num_positions" in row for row in equity_history):
+        num_positions = [int(row["num_positions"]) for row in equity_history]
+        plt.figure(figsize=(12, 4))
+        plt.step(timestamps, num_positions, where="post", label="Open Positions")
+        plt.title("Number of Open Positions Over Time")
+        plt.xlabel("Time")
+        plt.ylabel("Positions")
+        plt.legend()
+        _format_time_axis(plt.gca())
+        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("Skipping positions plot: 'num_positions' missing.")
+
+    # Plot cumulative PnL per country (return decomposition)
+    if all("country_pnl" in row for row in equity_history):
+        countries = list(equity_history[0]["country_pnl"].keys())
+        fig, ax = plt.subplots(figsize=(12, 6))
+        for country in countries:
+            daily = [float(row["country_pnl"].get(country, 0.0)) for row in equity_history]
+            cumulative = []
+            running = 0.0
+            for v in daily:
+                running += v
+                cumulative.append(running)
+            ax.plot(timestamps, cumulative, label=country)
+        ax.set_title("Cumulative PnL by Country")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Cumulative PnL")
+        ax.legend(loc="upper left", ncol=2, fontsize=8)
+        _format_time_axis(ax)
+        fig.autofmt_xdate()
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("Skipping country PnL plot: 'country_pnl' missing.")

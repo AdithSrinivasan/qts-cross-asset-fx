@@ -56,6 +56,7 @@ class Backtester:
         # Iterate through each entry in signals and execute trades as needed
         for date in self.return_predictions.index:
             day_pl = 0
+            day_country_pnl = {}
             for country in self.return_predictions.columns:
                 return_prediction = self.return_predictions.loc[date, country]
                 entry_threshold = self.entry_thresholds[country]
@@ -102,11 +103,16 @@ class Backtester:
                         self.trade_log.append({"date": date, "country": country, "qty": trade_qty, "trade_price": fx_price, "trade_value": trade_value, "trade_margin": trade_margin, "trading_cost": trading_cost})
 
 
+                # Calculate new net PL before checking exit so we capture the final day's move
+                new_pl = self.portfolio.get_today_pnl(country=country, date=date, new_p=fx_price)
+                day_pl += new_pl
+                day_country_pnl[country] = new_pl
+
                 # For existing positions check if price is below exit band
                 cur_position = self.portfolio.get_position(country=country)
                 if cur_position:
                     cur_qty = cur_position.get_quantity()
-                    if (cur_qty > 0 and return_prediction <= exit_threshold) or (cur_qty < 0 and return_prediction >= -exit_threshold): 
+                    if (cur_qty > 0 and return_prediction <= exit_threshold) or (cur_qty < 0 and return_prediction >= -exit_threshold):
                         self.portfolio.liquidate_position(country=country)
 
 
@@ -114,17 +120,12 @@ class Backtester:
 
                 # TODO call hedging function to update hedge (be sure to include in PL)
 
-
-                # Calculate new net PL TODO should this be earlier?
-                new_pl = self.portfolio.get_today_pnl(country=country, date=date, new_p=fx_price)
-                day_pl += new_pl
-
             # Update equity TODO should this and the portfolio logging be earlier?
             self.equity += day_pl
             
             # add to portfolio log
             target_total_exposure = self.equity * self.leverage_multiplier
-            self.portfolio_log.append({"date": date, "equity": self.equity, "pl": day_pl, "margin_used": self.portfolio.get_margin_used(), "total_exposure": self.portfolio.get_total_exposure(), "target_total_exposure": target_total_exposure, "total_trading_fees": self.total_trading_fees})
+            self.portfolio_log.append({"date": date, "equity": self.equity, "pl": day_pl, "margin_used": self.portfolio.get_margin_used(), "total_exposure": self.portfolio.get_total_exposure(), "target_total_exposure": target_total_exposure, "total_trading_fees": self.total_trading_fees, "num_positions": self.portfolio.get_num_positions(), "country_pnl": day_country_pnl})
 
 
     def get_backtest_results(self):

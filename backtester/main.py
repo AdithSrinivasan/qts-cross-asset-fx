@@ -1,19 +1,26 @@
-from backtester_engine import Backtester
-from performance_output import plot_portfolio_history, print_portfolio_stats
+from pathlib import Path
+
 import pandas as pd
+from backtester_engine import Backtester
 from hedge import compute_hedge_beta
+from performance_output import plot_portfolio_history, print_portfolio_stats
+
+DATA_DIR = Path("../data/")
+
 
 
 def main():
     # Get signals data
     train_predictions = pd.read_csv(
-        "../data/rf_train_predictions.csv", index_col="date"
+        f"{DATA_DIR}/rf_train_predictions.csv", index_col="date"
     )
-    test_predictions = pd.read_csv("../data/rf_test_predictions.csv", index_col="date")
-    entry_thresholds = pd.read_csv("../data/rf_thresholds.csv")
-    exit_thresholds = pd.read_csv("../data/rf_exit_thresholds.csv")
-    fx_contract_specs = pd.read_csv("../data/fx_contract_specs.csv")
-    fx_futures_panel = pd.read_csv("../data/fx_futures_panel.csv", index_col="date")
+    test_predictions = pd.read_csv(
+        f"{DATA_DIR}/rf_test_predictions.csv", index_col="date"
+    )
+    entry_thresholds = pd.read_csv(f"{DATA_DIR}/rf_thresholds.csv")
+    exit_thresholds = pd.read_csv(f"{DATA_DIR}/rf_exit_thresholds.csv")
+    fx_contract_specs = pd.read_csv(f"{DATA_DIR}/fx_contract_specs.csv")
+    fx_futures_panel = pd.read_csv(f"{DATA_DIR}/fx_futures_panel.csv", index_col="date")
 
     # Run backtesting simulation given parameters
     backtester = Backtester(
@@ -23,7 +30,7 @@ def main():
         exit_thresholds=exit_thresholds,
         fx_contract_specs=fx_contract_specs,
         is_train=True,
-        contract_cost_fixed=1.6,
+        contract_cost_fixed=0.07,
         starting_equity=2_000_000,
         leverage_multiplier=5.0,
         hedge_positions=False,
@@ -32,7 +39,6 @@ def main():
 
     # Display results
     backtest_trade_log, backtest_portfolio_log = backtester.get_backtest_results()
-    print(backtest_portfolio_log, backtest_trade_log)
     print_portfolio_stats(backtest_portfolio_log, backtest_trade_log)
     plot_portfolio_history(backtest_portfolio_log, backtest_trade_log)
 

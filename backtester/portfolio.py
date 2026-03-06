@@ -133,6 +133,9 @@ class Portfolio:
         position = self.positions[country]
         return position.get_notional()
     
+    def get_num_positions(self) -> int:
+        return len(self.positions)
+
     def get_today_pnl(self, country, date, new_p) -> float:
         """
         country date and price
