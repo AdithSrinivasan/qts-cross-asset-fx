@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from pathlib import Path
 
 import databento as db
@@ -21,6 +22,9 @@ DEFAULT_STYPE_IN = "continuous"
 DEFAULT_CONTINUOUS_RANK = 0
 DEFAULT_CONTRACT_SELECTION = "max-volume"
 DEFAULT_MAX_RANKS = 4
+DEFAULT_CHUNK_DAYS = 31
+DEFAULT_MAX_RETRIES = 4
+DEFAULT_RETRY_BASE_SECONDS = 1.0
 
 # These defaults are CME FX futures roots. By default the script converts them
 # to Databento continuous symbols such as 6B.c.0.
@@ -118,6 +122,24 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_MAX_RANKS,
         help="Number of continuous ranks to compare when selecting by volume.",
     )
+    parser.add_argument(
+        "--chunk-days",
+        type=int,
+        default=DEFAULT_CHUNK_DAYS,
+        help="Max days per Databento request. Smaller values are slower but more robust.",
+    )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=DEFAULT_MAX_RETRIES,
+        help="Retries for transient Databento stream failures.",
+    )
+    parser.add_argument(
+        "--retry-base-seconds",
+        type=float,
+        default=DEFAULT_RETRY_BASE_SECONDS,
+        help="Base seconds for exponential retry backoff.",
+    )
     return parser.parse_args()
 
 
@@ -194,16 +216,61 @@ def fetch_range_df(
     symbol: str,
     start: str,
     end: str,
+    chunk_days: int,
+    max_retries: int,
+    retry_base_seconds: float,
 ) -> pd.DataFrame:
-    data = client.timeseries.get_range(
-        dataset=dataset,
-        schema=schema,
-        symbols=[symbol],
-        stype_in=stype_in,
-        start=start,
-        end=end,
-    )
-    return data.to_df()
+    if chunk_days <= 0:
+        raise ValueError(f"chunk_days must be positive, got {chunk_days}")
+
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end)
+    frames: list[pd.DataFrame] = []
+    chunk_start = start_ts
+
+    while chunk_start < end_ts:
+        chunk_end = min(chunk_start + pd.Timedelta(days=chunk_days), end_ts)
+        last_exc: Exception | None = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                data = client.timeseries.get_range(
+                    dataset=dataset,
+                    schema=schema,
+                    symbols=[symbol],
+                    stype_in=stype_in,
+                    start=chunk_start.isoformat(),
+                    end=chunk_end.isoformat(),
+                )
+                chunk_df = data.to_df()
+                if not chunk_df.empty:
+                    frames.append(chunk_df)
+                last_exc = None
+                break
+            except Exception as exc:
+                last_exc = exc
+                if attempt >= max_retries:
+                    break
+                wait_seconds = retry_base_seconds * (2**attempt)
+                print(
+                    "Retrying Databento request "
+                    f"for {symbol} {chunk_start} to {chunk_end} "
+                    f"(attempt {attempt + 1}/{max_retries + 1}) after {wait_seconds:.1f}s: {exc}"
+                )
+                time.sleep(wait_seconds)
+
+        if last_exc is not None:
+            raise last_exc
+
+        chunk_start = chunk_end
+
+    if not frames:
+        return pd.DataFrame()
+
+    combined = pd.concat(frames).sort_index()
+    if isinstance(combined.index, pd.DatetimeIndex):
+        combined = combined[~combined.index.duplicated(keep="first")]
+    return combined
 
 
 def choose_contract_by_volume(
@@ -215,6 +282,9 @@ def choose_contract_by_volume(
     schema: str,
     stype_in: str,
     max_ranks: int,
+    chunk_days: int,
+    max_retries: int,
+    retry_base_seconds: float,
 ) -> tuple[str | None, pd.DataFrame]:
     if stype_in != "continuous":
         raise ValueError("contract-selection=max-volume requires --stype-in=continuous")
@@ -236,6 +306,9 @@ def choose_contract_by_volume(
             symbol=request_symbol,
             start=start,
             end=end,
+            chunk_days=chunk_days,
+            max_retries=max_retries,
+            retry_base_seconds=retry_base_seconds,
         )
         if df.empty:
             continue
@@ -264,6 +337,9 @@ def fetch_rank_day_groups(
     schema: str,
     stype_in: str,
     max_ranks: int,
+    chunk_days: int,
+    max_retries: int,
+    retry_base_seconds: float,
 ) -> dict[int, dict[pd.Timestamp, pd.DataFrame]]:
     if stype_in != "continuous":
         raise ValueError("contract-selection=max-volume requires --stype-in=continuous")
@@ -284,6 +360,9 @@ def fetch_rank_day_groups(
             symbol=request_symbol,
             start=start,
             end=end,
+            chunk_days=chunk_days,
+            max_retries=max_retries,
+            retry_base_seconds=retry_base_seconds,
         )
         if df.empty:
             continue
@@ -315,6 +394,9 @@ def fetch_and_store_country_max_volume(
     schema: str,
     stype_in: str,
     max_ranks: int,
+    chunk_days: int,
+    max_retries: int,
+    retry_base_seconds: float,
     skip_existing: bool,
 ) -> None:
     country_dir = output_dir / country.replace(" ", "_")
@@ -328,6 +410,9 @@ def fetch_and_store_country_max_volume(
         schema=schema,
         stype_in=stype_in,
         max_ranks=max_ranks,
+        chunk_days=chunk_days,
+        max_retries=max_retries,
+        retry_base_seconds=retry_base_seconds,
     )
 
     for day in dates:
@@ -381,6 +466,9 @@ def fetch_and_store_country_day(
     contract_selection: str,
     continuous_rank: int,
     max_ranks: int,
+    chunk_days: int,
+    max_retries: int,
+    retry_base_seconds: float,
     skip_existing: bool,
 ) -> None:
     country_dir = output_dir / country.replace(" ", "_")
@@ -400,6 +488,9 @@ def fetch_and_store_country_day(
             schema=schema,
             stype_in=stype_in,
             max_ranks=max_ranks,
+            chunk_days=chunk_days,
+            max_retries=max_retries,
+            retry_base_seconds=retry_base_seconds,
         )
         if request_symbol is None:
             print(
@@ -419,6 +510,9 @@ def fetch_and_store_country_day(
             symbol=request_symbol,
             start=start,
             end=end,
+            chunk_days=chunk_days,
+            max_retries=max_retries,
+            retry_base_seconds=retry_base_seconds,
         )
 
     if df.empty:
@@ -470,6 +564,9 @@ def main() -> None:
                 schema=args.schema,
                 stype_in=args.stype_in,
                 max_ranks=args.max_ranks,
+                chunk_days=args.chunk_days,
+                max_retries=args.max_retries,
+                retry_base_seconds=args.retry_base_seconds,
                 skip_existing=args.skip_existing,
             )
             continue
@@ -487,6 +584,9 @@ def main() -> None:
                 contract_selection=args.contract_selection,
                 continuous_rank=args.continuous_rank,
                 max_ranks=args.max_ranks,
+                chunk_days=args.chunk_days,
+                max_retries=args.max_retries,
+                retry_base_seconds=args.retry_base_seconds,
                 skip_existing=args.skip_existing,
             )
 
