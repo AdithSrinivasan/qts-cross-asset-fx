@@ -8,7 +8,6 @@ from performance_output import plot_portfolio_history, print_portfolio_stats
 DATA_DIR = Path("../data/")
 
 
-
 def main():
     # Get signals data
     train_predictions = pd.read_csv(
@@ -30,7 +29,7 @@ def main():
         exit_thresholds=exit_thresholds,
         fx_contract_specs=fx_contract_specs,
         is_train=True,
-        contract_cost_fixed=1.6,
+        contract_cost_fixed=1.7,
         starting_equity=2_000_000,
         leverage_multiplier=5.0,
         hedge_positions=False,
@@ -54,13 +53,13 @@ def main():
     
     test_predictions = pd.read_csv("../data/rf_test_predictions.csv", index_col="date")
     # Now compute hedge PnL
-    hedge_bt = Backtester(return_predictions=train_predictions,
+    hedge_bt = Backtester(return_predictions=test_predictions,
                             fx_futures_panel=fx_futures_panel,
                             entry_thresholds=entry_thresholds,
                             exit_thresholds=exit_thresholds,
                             fx_contract_specs=fx_contract_specs,
                             is_train=False,
-                            contract_cost_fixed=0.07,
+                            contract_cost_fixed=1.7,
                             starting_equity=2_000_000,
                             leverage_multiplier=5.0,
                             hedge_positions=True,
