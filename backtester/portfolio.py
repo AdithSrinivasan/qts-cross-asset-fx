@@ -3,16 +3,14 @@ from position import Position
 
 class Portfolio:
     
-    def __init__(self, equity):
+    def __init__(self):
         """
         Initializer for Portfolio Class.
         
         Inputs:
             self.positions: dictionary that maps each country to its Position object
-            self.equity: Pretty straightforward, just our equity
         """
         self.positions = {}
-        self.equity = equity
     
     def update_position(self, country, trade_qty: float, notional, initial_margin):
         """
@@ -109,6 +107,25 @@ class Portfolio:
         
         # leave function body
         return None
+    
+    def get_current_exposure(self) -> float:
+        """
+        Tells us current exposure.
+        
+        Formula: sum of quantity we have * contract multiplier * current asset price <- gives total exposure
+        
+        
+        for every product
+        
+        divided by all of the products in the portfolio
+
+        Returns:
+            float: _description_
+        """      
+        exposure = 0.0
+        for _, position in self.positions.items():
+            exposure += position.get_notional()
+        return exposure
     
     def get_today_pnl(self, country, date, new_p) -> float:
         """

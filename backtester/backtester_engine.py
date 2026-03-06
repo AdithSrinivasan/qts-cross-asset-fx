@@ -16,7 +16,9 @@ class Backtester:
                  contract_cost_fixed: float=0.07, # changed trading cost to 7 cents as discussed
                  starting_equity: float=2_000_000,
                  leverage_multiplier: float=5.0,
-                 hedge_positions: bool=False):
+                 position_weight_ratio: float=2,
+                 hedge_positions: bool=False,
+                 hedge_ratio=None):
 
         # load return predictions
         self.return_predictions = return_predictions.copy()
@@ -37,14 +39,17 @@ class Backtester:
         self.contract_sizes, self.initial_margin_per_contract = parse_contract_specs(fx_contract_specs)
 
         # Sets leverage and hedging values
+        self.contract_cost_fixed = contract_cost_fixed
         self.leverage_multiplier = leverage_multiplier
+        self.position_weight_ratio = position_weight_ratio
         self.hedge_positions = hedge_positions
+        self.hedge_ratio = hedge_ratio
         
         # create self.portfolio object
-        self.portfolio = Portfolio(equity=2_000_000)
+        self.portfolio = Portfolio()
 
         self.trade_log = [] # STRUCTURE: [{ts:, symbol:, side:, quantity:, price:, trading_cost:, effective_price: }
-        self.equity_log = [] # STRUCTURE: [{ts:, equity: }
+        self.portfolio_log = [] # STRUCTURE: [{ts:, equity: }
         self.positions = [] # STRUCTURE: [{
 
         self.equity = starting_equity
@@ -83,19 +88,17 @@ class Backtester:
                     num_assets = len(self.return_predictions.columns)
                     contract_multiplier = self.contract_sizes[country]
 
-                    target_trade_exposure = self.equity * self.leverage_multiplier / num_assets
+                    target_asset_exposure = self.equity * self.leverage_multiplier * self.position_weight_ratio / num_assets
+                    current_asset_exposure = self.portfolio.get_current_exposure()
                     contract_value = fx_price * contract_multiplier
-                    trade_qty = target_trade_exposure / contract_value
-
-                    # TODO usually you must round to an integer contract count:
-                    trade_qty = trade_qty  # floor, or round, depending on rules
-
+                    trade_qty = (target_asset_exposure - current_asset_exposure) / (contract_value + self.contract_cost_fixed)
                     trade_margin = trade_qty * self.initial_margin_per_contract[country]
 
                     # check free margin before placing:
                     if free_margin >= trade_margin and abs(trade_qty) > 0:
                         # Add position with correct side
-                        trade_qty = trade_qty if return_prediction >= entry_threshold else -trade_qty
+                        trade_sign = 1 if return_prediction >= entry_threshold else -1
+                        trade_qty *= trade_sign
                         trade_value = trade_qty * fx_price * contract_multiplier
                         self.portfolio.update_position(country=country, trade_qty=trade_qty, notional=trade_value, initial_margin=trade_margin)
                         self.trade_log.append({"date": date, "country": country, "qty": trade_qty, "trade_price": fx_price, "trade_value": trade_value, "trade_margin": trade_margin})
@@ -116,12 +119,13 @@ class Backtester:
             # Update equity 
             self.equity += day_pl
             
-            # add to equity log
-            self.equity_log.append({"date": date, "equity": self.equity})
+            # add to portfolio log
+            target_asset_exposure = self.equity * self.leverage_multiplier * self.position_weight_ratio / len(self.return_predictions.columns)
+            self.portfolio_log.append({"date": date, "equity": self.equity, "pl": day_pl, "margin_used": self.portfolio.get_margin_used(), "total_exposure": self.portfolio.get_current_exposure(), "target_asset_exposure": target_asset_exposure})
             
 
     def get_backtest_results(self):
-        return self.trade_log, self.equity_log
+        return self.trade_log, self.portfolio_log
     
 
 
