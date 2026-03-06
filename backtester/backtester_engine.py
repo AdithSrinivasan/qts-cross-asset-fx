@@ -107,6 +107,8 @@ class Backtester:
 
             # Update equity 
             self.equity += day_pl
+            
+            
 
 
     def get_backtest_results(self):
