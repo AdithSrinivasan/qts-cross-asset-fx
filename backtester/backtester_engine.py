@@ -12,7 +12,7 @@ class Backtester:
                  exit_thresholds: pd.DataFrame,
                  fx_contract_specs: pd.DataFrame,
                  is_train: bool,
-                 contract_cost_fixed: float=1.7, # changed trading cost to 7 cents as discussed
+                 contract_cost_fixed: float=1.7,
                  starting_equity: float=2_000_000,
                  leverage_multiplier: float=5.0,
                  position_weight_ratio: float=2,
@@ -26,7 +26,7 @@ class Backtester:
             raise ValueError("Countries to index by not in dataframe.")
 
         # Gets the number of country assets we are running on TODO should be min of all dfs
-        self.num_assets = self.fx_futures_panel.notna().any().sum()
+        self.num_assets = min([self.fx_futures_panel.notna().any().sum(), self.return_predictions.notna().any().sum()])
 
         # construct the (k, v) dictionary where k = country (string), v = entry/exit threshold (float)
         self.entry_thresholds = construct_threshold_dictionary(entry_thresholds, is_train=is_train)
@@ -45,9 +45,8 @@ class Backtester:
         # create self.portfolio object
         self.portfolio = Portfolio()
 
-        self.trade_log = [] # STRUCTURE: 
-        self.portfolio_log = [] # STRUCTURE: 
-
+        self.trade_log = []
+        self.portfolio_log = []
         self.equity = starting_equity
         self.backtest_ran = False
         self.total_trading_fees = 0
@@ -136,16 +135,6 @@ class Backtester:
                 self.portfolio.liquidate_position(country=loss_country)
 
             # TODO call hedging function to update hedge (be sure to include in PL)
-
-
-                # Calculate new net PL
-                new_pl = self.portfolio.get_today_pnl(country=country, date=date, new_p=fx_price)
-                day_pl += new_pl
-
-            # Update equity
-            self.equity += day_pl
-            
-            # TODO call hedging function to update hedge (be sure to include in PL)
             if self.hedge_positions:
                 # get the dollar return at that date
                 dollar_return = self.get_dollar_return(date=date)
@@ -155,6 +144,9 @@ class Backtester:
             else:
                 hedge_pl = 0.0
             day_pl += hedge_pl
+
+            # Update equity
+            self.equity += day_pl
 
             # add to portfolio log
             target_total_exposure = self.equity * self.leverage_multiplier
