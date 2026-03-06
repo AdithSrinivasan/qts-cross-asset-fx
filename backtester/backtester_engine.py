@@ -136,16 +136,6 @@ class Backtester:
                 self.portfolio.liquidate_position(country=loss_country)
 
             # TODO call hedging function to update hedge (be sure to include in PL)
-
-
-                # Calculate new net PL
-                new_pl = self.portfolio.get_today_pnl(country=country, date=date, new_p=fx_price)
-                day_pl += new_pl
-
-            # Update equity
-            self.equity += day_pl
-            
-            # TODO call hedging function to update hedge (be sure to include in PL)
             if self.hedge_positions:
                 # get the dollar return at that date
                 dollar_return = self.get_dollar_return(date=date)
@@ -155,6 +145,9 @@ class Backtester:
             else:
                 hedge_pl = 0.0
             day_pl += hedge_pl
+
+            # Update equity
+            self.equity += day_pl
 
             # add to portfolio log
             target_total_exposure = self.equity * self.leverage_multiplier
