@@ -1,9 +1,6 @@
 import pandas as pd
 from pandas import DataFrame
-import logging
-from typing import Optional, Dict, Any
 from portfolio import Portfolio
-from position import Position
 
 class Backtester:
     def __init__(self, 
@@ -23,17 +20,12 @@ class Backtester:
         # load return predictions
         self.return_predictions = return_predictions.copy()
         self.fx_futures_panel = fx_futures_panel.copy()
-        if "Country" not in entry_thresholds.columns:
+        if "Country" not in entry_thresholds.columns: # TODO add more checks
             raise ValueError("Countries to index by not in dataframe.")
-        
-        # relevant countries
-        self.countries =  [key for key in entry_thresholds["Country"]]
                 
         # construct the (k, v) dictionary where k = country (string), v = entry/exit threshold (float)
         self.entry_thresholds = construct_threshold_dictionary(entry_thresholds, is_train=is_train)
         self.exit_thresholds = construct_threshold_dictionary(exit_thresholds, is_train=is_train)
-        print(self.entry_thresholds)
-        print(self.exit_thresholds)
 
         # Gets fx contract specs
         self.contract_sizes, self.initial_margin_per_contract = parse_contract_specs(fx_contract_specs)
@@ -48,18 +40,16 @@ class Backtester:
         # create self.portfolio object
         self.portfolio = Portfolio()
 
-        self.trade_log = [] # STRUCTURE: [{ts:, symbol:, side:, quantity:, price:, trading_cost:, effective_price: }
-        self.portfolio_log = [] # STRUCTURE: [{ts:, equity: }
-        self.positions = [] # STRUCTURE: [{
+        self.trade_log = [] # STRUCTURE: 
+        self.portfolio_log = [] # STRUCTURE: 
 
         self.equity = starting_equity
-        self.margin_used = 0
         self.backtest_ran = False
 
 
     def run_backtest(self):
         if self.backtest_ran:
-            raise Exception("Backtest already run")
+            raise Exception("Backtest already run.")
         self.backtest_ran = True
 
         # Iterate through each entry in signals and execute trades as needed
@@ -100,8 +90,14 @@ class Backtester:
                         trade_sign = 1 if return_prediction >= entry_threshold else -1
                         trade_qty *= trade_sign
                         trade_value = trade_qty * fx_price * contract_multiplier
+
+                        # Account for fixed trading costs
+                        trading_cost = abs(trade_qty * self.contract_cost_fixed)
+                        self.equity -= trading_cost
+
+                        # Log trade
                         self.portfolio.update_position(country=country, trade_qty=trade_qty, notional=trade_value, initial_margin=trade_margin)
-                        self.trade_log.append({"date": date, "country": country, "qty": trade_qty, "trade_price": fx_price, "trade_value": trade_value, "trade_margin": trade_margin})
+                        self.trade_log.append({"date": date, "country": country, "qty": trade_qty, "trade_price": fx_price, "trade_value": trade_value, "trade_margin": trade_margin, "trading_cost": trading_cost})
 
 
                 # For existing positions check if price is below exit band
@@ -110,6 +106,8 @@ class Backtester:
                     cur_qty = cur_position.get_quantity()
                     if (cur_qty > 0 and return_prediction <= exit_threshold) or (cur_qty < 0 and return_prediction >= -exit_threshold): 
                         self.portfolio.liquidate_position(country=country)
+
+                # TODO call hedging function to update hedge (be sure to include in PL)
 
 
                 # Calculate new net PL
@@ -125,6 +123,8 @@ class Backtester:
 
 
     def get_backtest_results(self):
+        if not self.backtest_ran:
+            raise Exception("Backtest not yet ran.")
         return self.trade_log, self.portfolio_log
     
 

@@ -1,8 +1,10 @@
 import math
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import pandas as pd
 
 
-def print_portfolio_stats(equity_history):
+def print_portfolio_stats(equity_history, trades=None):
     """
     equity_history: list of dicts like
     [
@@ -117,6 +119,7 @@ def print_portfolio_stats(equity_history):
     print(f"Best Period Return:  {100 * best_period:.2f}%")
     print(f"Worst Period Return: {100 * worst_period:.2f}%")
     print(f"Num Observations:    {len(equity_history)}")
+    print(f"Total Trades:        {len(trades) if trades is not None else 0}")
 
 import matplotlib.pyplot as plt
 
@@ -140,10 +143,21 @@ def plot_portfolio_history(equity_history, trades=None):
     equities = [float(row["equity"]) for row in equity_history]
 
     if time_key is not None:
-        timestamps = [row[time_key] for row in equity_history]
+        timestamps = pd.to_datetime([row[time_key] for row in equity_history], errors="coerce")
     else:
         # fallback: just use index if no timestamp exists
         timestamps = list(range(len(equity_history)))
+
+    def _format_time_axis(axes):
+        if hasattr(axes, "flat"):
+            axes = list(axes.flat)
+        elif not isinstance(axes, (list, tuple)):
+            axes = [axes]
+        locator = mdates.AutoDateLocator(minticks=6, maxticks=50)
+        formatter = mdates.ConciseDateFormatter(locator)
+        for ax in axes:
+            ax.xaxis.set_major_locator(locator)
+            ax.xaxis.set_major_formatter(formatter)
 
     plt.figure(figsize=(12, 6))
     plt.plot(timestamps, equities, label="Portfolio Equity")
@@ -178,10 +192,80 @@ def plot_portfolio_history(equity_history, trades=None):
         if sell_x:
             plt.scatter(sell_x, sell_y, marker="v", label="Sell Trades")
 
+    ax = plt.gca()
     plt.title("Portfolio Equity Curve")
     plt.xlabel("Time")
     plt.ylabel("Equity")
     plt.legend()
-    plt.xticks(rotation=45)
+    _format_time_axis(ax)
+    plt.gcf().autofmt_xdate()
     plt.tight_layout()
     plt.show()
+
+    # Plot daily PnL and cumulative PnL
+    if all("pl" in row for row in equity_history):
+        daily_pl = [float(row["pl"]) for row in equity_history]
+        cumulative_pl = []
+        running_pl = 0.0
+        for pnl in daily_pl:
+            running_pl += pnl
+            cumulative_pl.append(running_pl)
+
+        fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+        axes[0].plot(timestamps, daily_pl, label="Daily PnL")
+        axes[0].set_title("Daily PnL")
+        axes[0].set_ylabel("PnL")
+        axes[0].legend()
+
+        axes[1].plot(timestamps, cumulative_pl, label="Cumulative Daily PnL")
+        axes[1].set_title("Cumulative Daily PnL")
+        axes[1].set_xlabel("Time")
+        axes[1].set_ylabel("PnL")
+        axes[1].legend()
+        _format_time_axis(axes)
+        fig.autofmt_xdate()
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("Skipping PnL plots: 'pl' not found in equity history.")
+
+    # Plot free margin (equity - margin_used)
+    if all(("equity" in row and "margin_used" in row) for row in equity_history):
+        free_margin = [float(row["equity"]) - float(row["margin_used"]) for row in equity_history]
+        plt.figure(figsize=(12, 6))
+        plt.plot(timestamps, free_margin, label="Free Margin")
+        plt.title("Free Margin Over Time")
+        plt.xlabel("Time")
+        plt.ylabel("Free Margin")
+        plt.legend()
+        _format_time_axis(plt.gca())
+        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("Skipping free margin plot: 'equity' or 'margin_used' missing.")
+
+    # Plot total exposure and target asset exposure
+    if all(("total_exposure" in row and "target_asset_exposure" in row) for row in equity_history):
+        total_exposure = [float(row["total_exposure"]) for row in equity_history]
+        target_exposure = [float(row["target_asset_exposure"]) for row in equity_history]
+
+        fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+        axes[0].plot(timestamps, total_exposure, label="Total Exposure")
+        axes[0].set_title("Total Exposure")
+        axes[0].set_ylabel("Exposure")
+        axes[0].legend()
+
+        axes[1].plot(timestamps, target_exposure, label="Target Asset Exposure")
+        axes[1].set_title("Target Asset Exposure")
+        axes[1].set_xlabel("Time")
+        axes[1].set_ylabel("Exposure")
+        axes[1].legend()
+        _format_time_axis(axes)
+        fig.autofmt_xdate()
+        plt.tight_layout()
+        plt.show()
+    else:
+        print(
+            "Skipping exposure plots: 'total_exposure' or 'target_asset_exposure' missing."
+        )
