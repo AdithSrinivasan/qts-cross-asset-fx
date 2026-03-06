@@ -6,7 +6,7 @@ import yfinance as yf
 from pathlib import Path
 import statsmodels.api as sm
 from sklearn.ensemble import RandomForestRegressor
-from load_data import prepare_bbg_data
+from src.load_data import prepare_bbg_data
 from pathlib import Path
 import matplotlib.pyplot as plt
 from plotnine import *
