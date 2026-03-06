@@ -2,6 +2,7 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
+import numpy as np
 
 
 def print_portfolio_stats(equity_history, trades=None):
@@ -37,6 +38,7 @@ def print_portfolio_stats(equity_history, trades=None):
         print("Could not compute returns from equity history.")
         return
 
+    returns = [r for r in returns if r != 0]
     start_equity = equities[0]
     end_equity = equities[-1]
     total_return = (end_equity / start_equity) - 1.0 if start_equity != 0 else 0.0
@@ -59,7 +61,9 @@ def print_portfolio_stats(equity_history, trades=None):
     downside_returns = [r for r in returns if r < 0]
     if len(downside_returns) > 1:
         downside_mean = sum(downside_returns) / len(downside_returns)
-        downside_variance = sum((r - downside_mean) ** 2 for r in downside_returns) / (len(downside_returns) - 1)
+        downside_variance = sum((r - downside_mean) ** 2 for r in downside_returns) / (
+            len(downside_returns) - 1
+        )
         downside_dev = math.sqrt(downside_variance)
     else:
         downside_dev = 0.0
@@ -81,22 +85,27 @@ def print_portfolio_stats(equity_history, trades=None):
             max_drawdown = min(max_drawdown, drawdown)
 
     # skewness and excess kurtosis
-    skew = 0.0
-    kurt = 0.0
+    skewness = skew(returns)
+    kurt = kurtosis(returns)
 
-    if len(returns) >= 3 and vol > 0:
-        n = len(returns)
-        m = avg_return
+    # if len(returns) >= 3 and vol > 0:
+    #     n = len(returns)
+    #     m = avg_return
 
-        m2 = sum((r - m) ** 2 for r in returns) / n
-        m3 = sum((r - m) ** 3 for r in returns) / n
-        m4 = sum((r - m) ** 4 for r in returns) / n
+    #     m2 = sum((r - m) ** 2 for r in returns) / n
+    #     m3 = sum((r - m) ** 3 for r in returns) / n
+    #     m4 = sum((r - m) ** 4 for r in returns) / n
 
-        if m2 > 0:
-            skew = m3 / (m2 ** 1.5)
-            kurt = (m4 / (m2 ** 2)) - 3.0
+    #     if m2 > 0:
+    #         skew = m3 / (m2**1.5)
+    #         kurt = (m4 / (m2**2)) - 3.0
 
+    print(returns)
     win_rate = sum(1 for r in returns if r > 0) / len(returns)
+    wins = [r for r in returns if r > 0]
+    avg_win = sum(wins) / len(wins) if wins else 0
+    losses = [r for r in returns if r < 0]
+    avg_loss = sum(losses) / len(losses) if losses else 0
     best_period = max(returns)
     worst_period = min(returns)
 
@@ -113,17 +122,17 @@ def print_portfolio_stats(equity_history, trades=None):
     print(f"Sharpe Ratio:        {sharpe:.4f}")
     print(f"Sortino Ratio:       {sortino:.4f}")
     print(f"Max Drawdown:        {100 * max_drawdown:.2f}%")
-    print(f"Skewness:            {skew:.4f}")
-    print(f"Excess Kurtosis:     {kurt:.4f}")
     print(f"Win Rate:            {100 * win_rate:.2f}%")
+    print(f"Average Win:         {100 * avg_win:.2f}%")
+    print(f"Average Loss:        {100 * avg_loss:.2f}%")
     print(f"Best Period Return:  {100 * best_period:.2f}%")
     print(f"Worst Period Return: {100 * worst_period:.2f}%")
     print(f"Num Observations:    {len(equity_history)}")
     print(f"Total Trades:        {len(trades) if trades is not None else 0}")
     if "total_trading_fees" in equity_history[-1]:
-        print(f"Total Trading Fees:  {float(equity_history[-1]['total_trading_fees']):,.2f}")
-
-import matplotlib.pyplot as plt
+        print(
+            f"Total Trading Fees:  {float(equity_history[-1]['total_trading_fees']):,.2f}"
+        )
 
 
 import matplotlib.pyplot as plt
@@ -145,7 +154,9 @@ def plot_portfolio_history(equity_history, trades=None):
     equities = [float(row["equity"]) for row in equity_history]
 
     if time_key is not None:
-        timestamps = pd.to_datetime([row[time_key] for row in equity_history], errors="coerce")
+        timestamps = pd.to_datetime(
+            [row[time_key] for row in equity_history], errors="coerce"
+        )
     else:
         # fallback: just use index if no timestamp exists
         timestamps = list(range(len(equity_history)))
@@ -233,7 +244,9 @@ def plot_portfolio_history(equity_history, trades=None):
 
     # Plot free margin (equity - margin_used)
     if all(("equity" in row and "margin_used" in row) for row in equity_history):
-        free_margin = [float(row["equity"]) - float(row["margin_used"]) for row in equity_history]
+        free_margin = [
+            float(row["equity"]) - float(row["margin_used"]) for row in equity_history
+        ]
         plt.figure(figsize=(12, 6))
         plt.plot(timestamps, free_margin, label="Free Margin")
         plt.title("Free Margin Over Time")
@@ -248,9 +261,14 @@ def plot_portfolio_history(equity_history, trades=None):
         print("Skipping free margin plot: 'equity' or 'margin_used' missing.")
 
     # Plot total exposure and target total exposure
-    if all(("total_exposure" in row and "target_total_exposure" in row) for row in equity_history):
+    if all(
+        ("total_exposure" in row and "target_total_exposure" in row)
+        for row in equity_history
+    ):
         total_exposure = [float(row["total_exposure"]) for row in equity_history]
-        target_exposure = [float(row["target_total_exposure"]) for row in equity_history]
+        target_exposure = [
+            float(row["target_total_exposure"]) for row in equity_history
+        ]
 
         plt.figure(figsize=(12, 6))
         plt.plot(timestamps, total_exposure, label="Total Exposure")
@@ -270,7 +288,9 @@ def plot_portfolio_history(equity_history, trades=None):
 
     # Plot total trading fees over time
     if all("total_trading_fees" in row for row in equity_history):
-        total_trading_fees = [float(row["total_trading_fees"]) for row in equity_history]
+        total_trading_fees = [
+            float(row["total_trading_fees"]) for row in equity_history
+        ]
         plt.figure(figsize=(12, 6))
         plt.plot(timestamps, total_trading_fees, label="Total Trading Fees")
         plt.title("Total Trading Fees Over Time")
