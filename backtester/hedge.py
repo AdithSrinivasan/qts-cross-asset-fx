@@ -4,7 +4,7 @@ import numpy as np
 
 def get_equity_returns(portfolio_log) -> pd.DataFrame:
     """
-    Gets the equity returns from the portfolio log produced from the 
+    Gets the equity series from the portfolio log produced from the 
     initial backtesting with 0 hedge
 
     Args:
@@ -12,25 +12,19 @@ def get_equity_returns(portfolio_log) -> pd.DataFrame:
             equity at a given date.
 
     Returns:
-        pd.DataFrame: Dataframe with date as  DateTimeIndex, and an equity_return column
+        pd.DataFrame: Dataframe with date as DateTimeIndex, and an equity column
     """
     
     # convert list of dictionaries to a dataframe
     df = pd.DataFrame(portfolio_log)
     
-    # set date column to the index and drop irrelevant non-equity columns
+    # set date column to the index and keep only equity
     df.set_index("date", inplace=True, drop=True)
     df.index.name = None
-    df.drop(["pl", "margin_used", "total_exposure", "target_asset_exposure"], axis=1, inplace=True)
+    if "equity" not in df.columns:
+        raise ValueError("equity column not found in portfolio_log")
+    df = df[["equity"]]
     
-    # rename remaining column to equity
-    df.columns = ["equity"]
-    
-    # calculate equity returns, and drop the equity column you used to compute those returns
-    df["equity_returns"] = df["equity"].pct_change()
-    df.drop("equity", axis=1, inplace=True)
-    
-    # return the head
     return df
 
 def get_hedge_returns() -> pd.DataFrame:
@@ -80,7 +74,9 @@ def compute_hedge_beta(portfolio_log) -> float:
     df = hedge_returns.merge(equity_returns, left_index=True, right_index=True, how='inner')
     
     # drop na for regressing
-    clean_df = df[['equity_returns', 'hedge_returns']].dropna()
+    clean_df = df[['equity', 'hedge_returns']].dropna()
+    clean_df["equity_returns"] = clean_df["equity"].pct_change()
+    clean_df = clean_df.dropna()
 
     # Check if you still have data left and then use np.polyfit to get the beta.
     if len(clean_df) < 2:
@@ -125,7 +121,9 @@ def compute_hedge_beta_with_intercept(portfolio_log) -> float:
     df = hedge_returns.merge(equity_returns, left_index=True, right_index=True, how='inner')
 
     # drop na for regressing
-    clean_df = df[['equity_returns', 'hedge_returns']].dropna()
+    clean_df = df[['equity', 'hedge_returns']].dropna()
+    clean_df["equity_returns"] = clean_df["equity"].pct_change()
+    clean_df = clean_df.dropna()
 
     # Check if you still have data left and then compute the beta with intercept.
     if len(clean_df) < 2:

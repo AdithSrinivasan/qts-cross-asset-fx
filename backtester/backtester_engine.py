@@ -52,7 +52,7 @@ class Backtester:
         self.backtest_ran = False
         self.total_trading_fees = 0
 
-        self.hedge_returns = None
+        self.hedge_returns = {}
 
 
     def run_backtest(self):
@@ -151,7 +151,7 @@ class Backtester:
                 dollar_return = self.get_dollar_return(date=date)
 
                 # hedge pl is our ratio multiplied by our exposure and our dollar return
-                hedge_pl = self.hedge_ratio * self.portfolio.get_total_exposure() * dollar_return
+                hedge_pl = -self.hedge_ratio * self.portfolio.get_total_exposure() * dollar_return
             else:
                 hedge_pl = 0.0
             day_pl += hedge_pl

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 from backtester_engine import Backtester
-from hedge import compute_hedge_beta
+from hedge import compute_hedge_beta, compute_hedge_beta_with_intercept
 from performance_output import plot_portfolio_history, print_portfolio_stats
 
 DATA_DIR = Path("../data/")
@@ -54,7 +54,7 @@ def main():
     
     test_predictions = pd.read_csv("../data/rf_test_predictions.csv", index_col="date")
     # Now compute hedge PnL
-    hedge_bt = Backtester(return_predictions=test_predictions,
+    hedge_bt = Backtester(return_predictions=train_predictions,
                             fx_futures_panel=fx_futures_panel,
                             entry_thresholds=entry_thresholds,
                             exit_thresholds=exit_thresholds,
