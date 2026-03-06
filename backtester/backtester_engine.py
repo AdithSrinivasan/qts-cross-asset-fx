@@ -45,6 +45,7 @@ class Backtester:
 
         self.equity = starting_equity
         self.backtest_ran = False
+        self.total_trading_fees = 0
 
 
     def run_backtest(self):
@@ -79,7 +80,7 @@ class Backtester:
                     contract_multiplier = self.contract_sizes[country]
 
                     target_asset_exposure = self.equity * self.leverage_multiplier * self.position_weight_ratio / num_assets
-                    current_asset_exposure = self.portfolio.get_current_exposure()
+                    current_asset_exposure = self.portfolio.get_current_country_exposure(country=country)
                     contract_value = fx_price * contract_multiplier
                     trade_qty = (target_asset_exposure - current_asset_exposure) / (contract_value + self.contract_cost_fixed)
                     trade_margin = trade_qty * self.initial_margin_per_contract[country]
@@ -94,6 +95,7 @@ class Backtester:
                         # Account for fixed trading costs
                         trading_cost = abs(trade_qty * self.contract_cost_fixed)
                         self.equity -= trading_cost
+                        self.total_trading_fees += trading_cost
 
                         # Log trade
                         self.portfolio.update_position(country=country, trade_qty=trade_qty, notional=trade_value, initial_margin=trade_margin)
@@ -107,19 +109,22 @@ class Backtester:
                     if (cur_qty > 0 and return_prediction <= exit_threshold) or (cur_qty < 0 and return_prediction >= -exit_threshold): 
                         self.portfolio.liquidate_position(country=country)
 
+
+                # TODO add margin calling
+
                 # TODO call hedging function to update hedge (be sure to include in PL)
 
 
-                # Calculate new net PL
+                # Calculate new net PL TODO should this be earlier?
                 new_pl = self.portfolio.get_today_pnl(country=country, date=date, new_p=fx_price)
                 day_pl += new_pl
 
-            # Update equity 
+            # Update equity TODO should this and the portfolio logging be earlier?
             self.equity += day_pl
             
             # add to portfolio log
-            target_asset_exposure = self.equity * self.leverage_multiplier * self.position_weight_ratio / len(self.return_predictions.columns)
-            self.portfolio_log.append({"date": date, "equity": self.equity, "pl": day_pl, "margin_used": self.portfolio.get_margin_used(), "total_exposure": self.portfolio.get_current_exposure(), "target_asset_exposure": target_asset_exposure})
+            target_total_exposure = self.equity * self.leverage_multiplier
+            self.portfolio_log.append({"date": date, "equity": self.equity, "pl": day_pl, "margin_used": self.portfolio.get_margin_used(), "total_exposure": self.portfolio.get_total_exposure(), "target_total_exposure": target_total_exposure, "total_trading_fees": self.total_trading_fees})
 
 
     def get_backtest_results(self):

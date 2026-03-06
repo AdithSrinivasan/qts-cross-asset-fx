@@ -130,7 +130,7 @@ class Portfolio:
     def get_current_country_exposure(self, country):
         if country not in self.positions:
             return 0.0
-        position = self.position[country]
+        position = self.positions[country]
         return position.get_notional()
     
     def get_today_pnl(self, country, date, new_p) -> float:

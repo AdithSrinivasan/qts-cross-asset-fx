@@ -120,6 +120,8 @@ def print_portfolio_stats(equity_history, trades=None):
     print(f"Worst Period Return: {100 * worst_period:.2f}%")
     print(f"Num Observations:    {len(equity_history)}")
     print(f"Total Trades:        {len(trades) if trades is not None else 0}")
+    if "total_trading_fees" in equity_history[-1]:
+        print(f"Total Trading Fees:  {float(equity_history[-1]['total_trading_fees']):,.2f}")
 
 import matplotlib.pyplot as plt
 
@@ -245,27 +247,39 @@ def plot_portfolio_history(equity_history, trades=None):
     else:
         print("Skipping free margin plot: 'equity' or 'margin_used' missing.")
 
-    # Plot total exposure and target asset exposure
-    if all(("total_exposure" in row and "target_asset_exposure" in row) for row in equity_history):
+    # Plot total exposure and target total exposure
+    if all(("total_exposure" in row and "target_total_exposure" in row) for row in equity_history):
         total_exposure = [float(row["total_exposure"]) for row in equity_history]
-        target_exposure = [float(row["target_asset_exposure"]) for row in equity_history]
+        target_exposure = [float(row["target_total_exposure"]) for row in equity_history]
 
-        fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-        axes[0].plot(timestamps, total_exposure, label="Total Exposure")
-        axes[0].set_title("Total Exposure")
-        axes[0].set_ylabel("Exposure")
-        axes[0].legend()
-
-        axes[1].plot(timestamps, target_exposure, label="Target Asset Exposure")
-        axes[1].set_title("Target Asset Exposure")
-        axes[1].set_xlabel("Time")
-        axes[1].set_ylabel("Exposure")
-        axes[1].legend()
-        _format_time_axis(axes)
-        fig.autofmt_xdate()
+        plt.figure(figsize=(12, 6))
+        plt.plot(timestamps, total_exposure, label="Total Exposure")
+        plt.plot(timestamps, target_exposure, label="Target Total Exposure")
+        plt.title("Total vs Target Total Exposure")
+        plt.xlabel("Time")
+        plt.ylabel("Exposure")
+        plt.legend()
+        _format_time_axis(plt.gca())
+        plt.gcf().autofmt_xdate()
         plt.tight_layout()
         plt.show()
     else:
         print(
-            "Skipping exposure plots: 'total_exposure' or 'target_asset_exposure' missing."
+            "Skipping exposure plots: 'total_exposure' or 'target_total_exposure' missing."
         )
+
+    # Plot total trading fees over time
+    if all("total_trading_fees" in row for row in equity_history):
+        total_trading_fees = [float(row["total_trading_fees"]) for row in equity_history]
+        plt.figure(figsize=(12, 6))
+        plt.plot(timestamps, total_trading_fees, label="Total Trading Fees")
+        plt.title("Total Trading Fees Over Time")
+        plt.xlabel("Time")
+        plt.ylabel("Fees")
+        plt.legend()
+        _format_time_axis(plt.gca())
+        plt.gcf().autofmt_xdate()
+        plt.tight_layout()
+        plt.show()
+    else:
+        print("Skipping trading fees plot: 'total_trading_fees' missing.")
