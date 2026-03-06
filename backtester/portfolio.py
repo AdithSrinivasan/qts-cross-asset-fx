@@ -152,6 +152,12 @@ class Portfolio:
     
     def get_num_positions(self) -> int:
         return len(self.positions)
+    
+    def get_net_exposure(self) -> float:
+        exposure = 0.0
+        for _, position in self.positions.items():
+            exposure += position.get_directional_exposure()
+        return exposure
 
     def get_today_pnl(self, country) -> float:
         """
