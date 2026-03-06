@@ -4,6 +4,7 @@ import pandas as pd
 import polars as pl
 import numpy as np
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 FX_DATA_DIR = DATA_DIR / "fx_data"
@@ -33,6 +34,26 @@ _USD_PER_FX_META: dict[str, tuple[str, bool]] = {
     "DEXSIUS": ("SGD", True),  # SGD per USD  → invert
     "DEXSZUS": ("CHF", True),  # CHF per USD  → invert
     "DEXUSNZ": ("NZD", False),  # USD per NZD  → keep
+}
+
+# Edit these to your preferred market-close definitions                                                                                                                                                             
+DEFAULT_MARKET_CLOSES = {                                                                                                                                                                                           
+    "US": ("America/New_York", "16:00"),                                                                                                                                                                            
+    "UK": ("Europe/London", "16:30"),                                                                                                                                                                               
+    "Japan": ("Asia/Tokyo", "15:00"),                                                                                                                                                                               
+    "Australia": ("Australia/Sydney", "16:00"),                                                                                                                                                                     
+    "Canada": ("America/Toronto", "16:00"),                                                                                                                                                                         
+    "Switzerland": ("Europe/Zurich", "17:30"),                                                                                                                                                                      
+    "Hong Kong": ("Asia/Hong_Kong", "16:00"),                                                                                                                                                                       
+    "Singapore": ("Asia/Singapore", "17:00"),                                                                                                                                                                       
+    "India": ("Asia/Kolkata", "15:30"),                                                                                                                                                                             
+    "South Korea": ("Asia/Seoul", "15:30"),                                                                                                                                                                         
+    "Sweden": ("Europe/Stockholm", "17:30"),                                                                                                                                                                        
+    "Norway": ("Europe/Oslo", "16:30"),                                                                                                                                                                             
+    "New Zealand": ("Pacific/Auckland", "16:45"),                                                                                                                                                                   
+    "South Africa": ("Africa/Johannesburg", "17:00"),                                                                                                                                                               
+    "Brazil": ("America/Sao_Paulo", "17:00"),                                                                                                                                                                       
+    "Mexico": ("America/Mexico_City", "15:00"),                                                                                                                                                                     
 }
 
 
@@ -270,5 +291,69 @@ def load_fx_futures_data(data_dir: Path = DATA_DIR) -> pd.DataFrame:
     out = pd.concat(frames, ignore_index=True)
     return out
 
+
+def build_after_close_panel(                                                                                                                                                                                        
+    combined_df: pd.DataFrame,                                                                                                                                                                                      
+    market_closes: dict[str, tuple[str, str]] = DEFAULT_MARKET_CLOSES,                                                                                                                                              
+    max_delay: str = "12h",
+    data_dir: Path = DATA_DIR                                                                                                                                                                                
+) -> pd.DataFrame:                                                                                                                                                                                                  
+    """                                                                                                                                                                                                             
+    Input: combined_df with columns ['ts_event', 'close', 'country'].                                                                                                                                               
+    Output: wide df indexed by local market date, one column per country                                                                                                                                            
+            (e.g., us_close), value = first futures price at/after local close.                                                                                                                                     
+    """                                                                                                                                                                                                             
+    df = combined_df.copy()                                                                                                                                                                                         
+    df["ts_event"] = pd.to_datetime(df["ts_event"], utc=True, errors="coerce")                                                                                                                                      
+    df = df.dropna(subset=["ts_event", "close", "country"]).sort_values("ts_event")                                                                                                                                 
+    max_delay_td = pd.Timedelta(max_delay)                                                                                                                                                                          
+                                                                                                                                                                                                                    
+    rows = []                                                                                                                                                                                                       
+                                                                                                                                                                                                                    
+    for country, (tz_name, close_hhmm) in market_closes.items():                                                                                                                                                    
+        cdf = df[df["country"] == country].sort_values("ts_event")                                                                                                                                                  
+        if cdf.empty:                                                                                                                                                                                               
+            continue                                                                                                                                                                                                
+                                                                                                                                                                                                                    
+        ts = pd.DatetimeIndex(cdf["ts_event"])                                                                                                                                                                      
+        close_vals = cdf["close"].to_numpy()                                                                                                                                                                        
+                                                                                                                                                                                                                    
+        local_ts = ts.tz_convert(ZoneInfo(tz_name))                                                                                                                                                                 
+        start_date = local_ts.min().date()
+        end_date = local_ts.max().date()                                                                                                                                                                            
+                                                                                                                                                                                                                    
+        hh, mm = map(int, close_hhmm.split(":"))                                                                                                                                                                    
+                                                                                                                                                                                                                    
+        for d in pd.date_range(start_date, end_date, freq="D"):                                                                                                                                                     
+            cutoff_local = pd.Timestamp(                                                                                                                                                                            
+                year=d.year, month=d.month, day=d.day, hour=hh, minute=mm, tz=ZoneInfo(tz_name)                                                                                                                     
+            )                                                                                                                                                                                                       
+            cutoff_utc = cutoff_local.tz_convert("UTC")                                                                                                                                                             
+            next_cutoff_utc = cutoff_utc + pd.Timedelta(days=1)                                                                                                                                                     
+                                                                                                                                                                                                                    
+            i = ts.searchsorted(cutoff_utc, side="left")                                                                                                                                                            
+            if i >= len(ts):                                                                                                                                                                                        
+                continue                                                                                                                                                                                            
+                                                                                                                                                                                                                    
+            chosen_ts = ts[i]                                                                                                                                                                                       
+            if chosen_ts < next_cutoff_utc and (chosen_ts - cutoff_utc) <= max_delay_td:                                                                                                                            
+                rows.append(                                                                                                                                                                                        
+                    {"date": pd.Timestamp(d.date()), "country": country, "close": close_vals[i]}                                                                                                                    
+                )                                                                                                                                                                                                   
+                                                                                                                                                                                                                    
+    out = pd.DataFrame(rows)                                                                                                                                                                                        
+    if out.empty:                                                                                                                                                                                                   
+        return pd.DataFrame()                                                                                                                                                                                       
+                                                                                                                                                                                                                    
+    panel = out.pivot(index="date", columns="country", values="close").sort_index()                                                                                                                                 
+    panel.columns = [f"{c.lower().replace(' ', '_')}_close" for c in panel.columns]
+
+    out_path = data_dir / "fx_futures_panel.csv"
+    panel.to_csv(out_path)
+
+    return panel
+
+
 if __name__ == "__main__":
-    print(load_fx_futures_data())
+    combined = load_fx_futures_data()
+    after_close = build_after_close_panel(combined)

@@ -8,7 +8,7 @@ from position import Position
 class Backtester:
     def __init__(self, 
                  return_predictions: DataFrame,
-                 fx_futures: DataFrame,
+                 fx_futures_panel: DataFrame,
                  entry_thresholds: pd.DataFrame,
                  exit_thresholds: pd.DataFrame,
                  fx_contract_specs: pd.DataFrame,
@@ -20,7 +20,7 @@ class Backtester:
 
         # load return predictions
         self.return_predictions = return_predictions.copy()
-        self.fx_futures = fx_futures.copy()
+        self.fx_futures_panel = fx_futures_panel.copy()
         if "Country" not in entry_thresholds.columns:
             raise ValueError("Countries to index by not in dataframe.")
         
@@ -66,7 +66,7 @@ class Backtester:
                 return_prediction = self.return_predictions.loc[date, country]
                 entry_threshold = self.entry_thresholds[country]
                 exit_threshold = self.exit_thresholds[country]
-                fx_price = self.fx_futures.loc[date, country]
+                fx_price = self.fx_futures_panel.loc[date, country]
 
                 margin_used = self.portfolio.get_margin_used() # TODO implement
                 free_margin = self.equity - margin_used
@@ -107,6 +107,9 @@ class Backtester:
 
             # Update equity 
             self.equity += day_pl
+            
+            # add to equity log
+            self.equity_log.append({"date": date, "equity": self.equity})
 
 
     def get_backtest_results(self):

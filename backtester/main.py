@@ -11,12 +11,12 @@ def main():
     entry_thresholds = pd.read_csv("../data/rf_thresholds.csv")
     exit_thresholds = pd.read_csv("../data/rf_exit_thresholds")
     fx_contract_specs = pd.read_csv("../data/fx_contract_specs.csv")
-    fx_futures = load_fx_futures_data()
+    fx_futures_panel = pd.read_csv("../data/fx_futures_panel.csv", index_col="date")
     
 
     # Run backtesting simulation given parameters
     backtester = Backtester(return_predictions=train_predictions,
-                            fx_futures=fx_futures,
+                            fx_futures_panel=fx_futures_panel,
                             entry_thresholds=entry_thresholds,
                             exit_thresholds=exit_thresholds,
                             fx_contract_specs=fx_contract_specs,
@@ -28,9 +28,8 @@ def main():
     backtester.run_backtest()
 
     # Display results
-    backtest_trade_log, backtest_value_log = backtester.get_backtest_results()
-    print(backtest_value_log)
-    print(backtest_trade_log)
+    backtest_trade_log, backtest_equity_log = backtester.get_backtest_results()
+    print_portfolio_stats(equity_log=backtest_equity_log)
     # print_portfolio_stats(backtest_value_log)
     # plot_portfolio_history(backtest_value_log)
 

@@ -36,7 +36,7 @@ class Position:
         """
         Notes: TODO: delete
         # dictionary of dates: float
-         =# we add notional (effective exposure)
+        =# we add notional (effective exposure)
         # Total notional
         # notional not the same
         # Total margin used
