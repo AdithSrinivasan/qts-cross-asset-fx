@@ -1,0 +1,3 @@
+- Contract size should be interns of USD not foreign currency
+- Using last price to get total exposure which is wrong
+- num assets should be min of all countries we have data for

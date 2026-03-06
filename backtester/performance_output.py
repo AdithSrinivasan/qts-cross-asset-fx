@@ -126,6 +126,54 @@ def print_portfolio_stats(equity_history, trades=None):
             f"Total Trading Fees:  {float(equity_history[-1]['total_trading_fees']):,.2f}"
         )
 
+def plot_free_margin_vs_total_maintenance_margin(equity_history):
+    if not equity_history:
+        print("No equity history found.")
+        return
+
+    sample = equity_history[0]
+    time_key = None
+    for key in ["ts", "date", "timestamp"]:
+        if key in sample:
+            time_key = key
+            break
+
+    required_keys = ("equity", "margin_used", "total_maintenance_margin")
+    if not all(all(k in row for k in required_keys) for row in equity_history):
+        print(
+            "Skipping free margin vs maintenance margin plot: required fields missing."
+        )
+        return
+
+    if time_key is not None:
+        timestamps = pd.to_datetime(
+            [row[time_key] for row in equity_history], errors="coerce"
+        )
+    else:
+        timestamps = list(range(len(equity_history)))
+
+    free_margin = [float(row["equity"]) - float(row["margin_used"]) for row in equity_history]
+    total_maintenance_margin = [float(row["total_maintenance_margin"]) for row in equity_history]
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(timestamps, free_margin, label="Free Margin")
+    plt.plot(timestamps, total_maintenance_margin, label="Total Maintenance Margin")
+    plt.title("Free Margin vs Total Maintenance Margin")
+    plt.xlabel("Time")
+    plt.ylabel("Value")
+    plt.legend()
+
+    if time_key is not None:
+        locator = mdates.AutoDateLocator(minticks=6, maxticks=50)
+        formatter = mdates.ConciseDateFormatter(locator)
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formatter)
+        plt.gcf().autofmt_xdate()
+
+    plt.tight_layout()
+    plt.show()
+
 
 def plot_portfolio_history(equity_history, trades=None):
     if not equity_history:
@@ -231,23 +279,8 @@ def plot_portfolio_history(equity_history, trades=None):
     else:
         print("Skipping PnL plots: 'pl' not found in equity history.")
 
-    # Plot free margin (equity - margin_used)
-    if all(("equity" in row and "margin_used" in row) for row in equity_history):
-        free_margin = [
-            float(row["equity"]) - float(row["margin_used"]) for row in equity_history
-        ]
-        plt.figure(figsize=(12, 6))
-        plt.plot(timestamps, free_margin, label="Free Margin")
-        plt.title("Free Margin Over Time")
-        plt.xlabel("Time")
-        plt.ylabel("Free Margin")
-        plt.legend()
-        _format_time_axis(plt.gca())
-        plt.gcf().autofmt_xdate()
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("Skipping free margin plot: 'equity' or 'margin_used' missing.")
+    # Plot free margin against maintenance margin
+    plot_free_margin_vs_total_maintenance_margin(equity_history)
 
     # Plot total exposure and target total exposure
     if all(
