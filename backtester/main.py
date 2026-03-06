@@ -64,7 +64,7 @@ def main():
                             starting_equity=2_000_000,
                             leverage_multiplier=5.0,
                             hedge_positions=True,
-                            hedge_ratio=hedge_beta)
+                            hedge_ratio=-hedge_beta)
     
     hedge_bt.run_backtest()
     

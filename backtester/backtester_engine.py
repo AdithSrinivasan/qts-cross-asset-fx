@@ -22,6 +22,9 @@ class Backtester:
         # load return predictions
         self.return_predictions = return_predictions.copy()
         self.fx_futures_panel = fx_futures_panel.copy()
+
+        self.fx_futures_panel.drop(columns=["Sweden", "Norway"], inplace=True)
+
         if "Country" not in entry_thresholds.columns: # TODO add more checks
             raise ValueError("Countries to index by not in dataframe.")
 
@@ -108,6 +111,11 @@ class Backtester:
                         self.portfolio.update_position(country=country, price=fx_price, trade_qty=trade_qty, contract_multiplier=contract_multiplier, contract_initial_margin=self.initial_margin_per_contract[country], contract_maintenance_margin=self.maintenance_margin_per_contract[country])
                         self.trade_log.append({"date": date, "country": country, "qty": trade_qty, "trade_price": fx_price, "trade_value": trade_value, "trade_margin": trade_margin, "trading_cost": trading_cost})
 
+                # Calculate new net PL TODO should this be earlier?
+                new_pl = self.portfolio.get_today_pnl(country=country)
+                day_pl += new_pl
+                day_country_pnl[country] = new_pl
+
                 # For existing positions check if price is below exit band
                 cur_position = self.portfolio.get_position(country=country)
                 if cur_position:
@@ -115,10 +123,6 @@ class Backtester:
                     if (cur_qty > 0 and return_prediction <= exit_threshold) or (cur_qty < 0 and return_prediction >= -exit_threshold):
                         self.portfolio.liquidate_position(country=country)
 
-                # Calculate new net PL TODO should this be earlier?
-                new_pl = self.portfolio.get_today_pnl(country=country)
-                day_pl += new_pl
-                day_country_pnl[country] = new_pl
 
             # Check if margin call and liquidate position with the highest relative pl for day
             total_maintenance_margin = self.portfolio.get_maintenance_margin_used()
@@ -140,7 +144,7 @@ class Backtester:
                 dollar_return = self.get_dollar_return(date=date)
 
                 # hedge pl is our ratio multiplied by our exposure and our dollar return
-                hedge_pl = -self.hedge_ratio * self.portfolio.get_total_exposure() * dollar_return
+                hedge_pl = self.hedge_ratio * self.portfolio.get_total_exposure() * dollar_return
             else:
                 hedge_pl = 0.0
             day_pl += hedge_pl
