@@ -67,7 +67,7 @@ class Portfolio:
         # return our portfolio's total margin
         return total_margin
     
-    def get_position(self, country) -> Position:
+    def get_position(self, country):
         """
         Gets the Position object for a country 
         during backtesting. Also helpful for debugging/examining
@@ -81,7 +81,7 @@ class Portfolio:
         """
         # check if the country exists for proper pnl usage
         if country not in self.positions:
-            raise ValueError(f"Country {country} does not have a current position. You tried accessing a nonexistent position")
+            return None
         
         # get the position via the k, v pair in the dictionary to access the position desired
         return self.positions[country]
@@ -99,7 +99,7 @@ class Portfolio:
         """
         # check if the country exists for proper pnl usage
         if country not in self.positions:
-            raise ValueError(f"Country {country} does not have a current position. You tried accessing a nonexistent position")
+            return None
         
         # # get the position via the k, v pair in the dictionary
         # self.positions[country].liquidate()
@@ -127,7 +127,7 @@ class Portfolio:
         
         # check if the country exists for proper pnl usage
         if country not in self.positions:
-            raise ValueError(f"Country {country} does not exist! no pnl")
+            return 0.0
 
         # if so, calculate today's profit and loss!
         return self.positions[country].calc_today_pnl(date, new_p)

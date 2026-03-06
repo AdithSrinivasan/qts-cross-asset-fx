@@ -292,21 +292,34 @@ def load_fx_futures_data(data_dir: Path = DATA_DIR) -> pd.DataFrame:
     return out
 
 
-def build_after_close_panel(                                                                                                                                                                                        
+def build_after_close_panel(
     combined_df: pd.DataFrame,                                                                                                                                                                                      
     market_closes: dict[str, tuple[str, str]] = DEFAULT_MARKET_CLOSES,                                                                                                                                              
-    max_delay: str = "12h",
-    data_dir: Path = DATA_DIR                                                                                                                                                                                
+    max_delay: str = "12h",                                                                                                                                                                                         
+    data_dir: Path = DATA_DIR,                                                                                                                                                                                      
 ) -> pd.DataFrame:                                                                                                                                                                                                  
     """                                                                                                                                                                                                             
     Input: combined_df with columns ['ts_event', 'close', 'country'].                                                                                                                                               
     Output: wide df indexed by local market date, one column per country                                                                                                                                            
             (e.g., us_close), value = first futures price at/after local close.                                                                                                                                     
+                                                                                                                                                                                                                    
+    Also ensures empty columns exist for any country folder present in                                                                                                                                              
+    data/futures_1m/, even if that country has no files/data.                                                                                                                                                       
     """                                                                                                                                                                                                             
     df = combined_df.copy()                                                                                                                                                                                         
     df["ts_event"] = pd.to_datetime(df["ts_event"], utc=True, errors="coerce")                                                                                                                                      
     df = df.dropna(subset=["ts_event", "close", "country"]).sort_values("ts_event")                                                                                                                                 
     max_delay_td = pd.Timedelta(max_delay)                                                                                                                                                                          
+                                                                                                                                                                                                                    
+    # Countries implied by folder names in data/futures_1m (South_Korea -> South Korea)                                                                                                                             
+    futures_dir = data_dir / "futures_1m"                                                                                                                                                                           
+    folder_countries = set()                                                                                                                                                                                        
+    if futures_dir.exists():                                                                                                                                                                                        
+        folder_countries = {                                                                                                                                                                                        
+            p.name.replace("_", " ")                                                                                                                                                                                
+            for p in futures_dir.iterdir()                                                                                                                                                                          
+            if p.is_dir()                                                                                                                                                                                           
+        }                                                                                                                                                                                                           
                                                                                                                                                                                                                     
     rows = []                                                                                                                                                                                                       
                                                                                                                                                                                                                     
@@ -319,7 +332,7 @@ def build_after_close_panel(
         close_vals = cdf["close"].to_numpy()                                                                                                                                                                        
                                                                                                                                                                                                                     
         local_ts = ts.tz_convert(ZoneInfo(tz_name))                                                                                                                                                                 
-        start_date = local_ts.min().date()
+        start_date = local_ts.min().date()                                                                                                                                                                          
         end_date = local_ts.max().date()                                                                                                                                                                            
                                                                                                                                                                                                                     
         hh, mm = map(int, close_hhmm.split(":"))                                                                                                                                                                    
@@ -342,15 +355,23 @@ def build_after_close_panel(
                 )                                                                                                                                                                                                   
                                                                                                                                                                                                                     
     out = pd.DataFrame(rows)                                                                                                                                                                                        
-    if out.empty:                                                                                                                                                                                                   
-        return pd.DataFrame()                                                                                                                                                                                       
                                                                                                                                                                                                                     
-    panel = out.pivot(index="date", columns="country", values="close").sort_index()                                                                                                                                 
-    panel.columns = [f"{c.lower().replace(' ', '_')}_close" for c in panel.columns]
-
-    out_path = data_dir / "fx_futures_panel.csv"
-    panel.to_csv(out_path)
-
+    if out.empty:                                                                                                                                                                                                   
+        panel = pd.DataFrame()                                                                                                                                                                                      
+    else:                                                                                                                                                                                                           
+        panel = out.pivot(index="date", columns="country", values="close").sort_index()                                                                                                                             
+                                                                                                                                                                                                                    
+    # Ensure empty columns for all countries with folders in futures_1m                                                                                                                                             
+    for country in sorted(folder_countries):                                                                                                                                                                        
+        if country not in panel.columns:                                                                                                                                                                            
+            panel[country] = pd.NA                                                                                                                                                                                  
+                                                                                                                                                                                                                    
+    if not panel.empty:                                                                                                                                                                                             
+        panel = panel.reindex(columns=sorted(panel.columns))                                                                                                                                                        
+                                                                                                                                                                                                                    
+    out_path = data_dir / "fx_futures_panel.csv"                                                                                                                                                                    
+    panel.to_csv(out_path)                                                                                                                                                                                          
+                                                                                                                                                                                                                    
     return panel
 
 

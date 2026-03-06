@@ -1,15 +1,13 @@
 from backtester_engine import Backtester
 from performance_output import plot_portfolio_history, print_portfolio_stats
 import pandas as pd
-from src.load_data import load_fx_futures_data 
-
 
 def main():
     # Get signals data
-    train_predictions = pd.read_csv("../data/rf_train_predictions.csv")
-    test_predictions = pd.read_csv("../data/rf_test_predictions.csv")
+    train_predictions = pd.read_csv("../data/rf_train_predictions.csv", index_col="date")
+    test_predictions = pd.read_csv("../data/rf_test_predictions.csv", index_col="date")
     entry_thresholds = pd.read_csv("../data/rf_thresholds.csv")
-    exit_thresholds = pd.read_csv("../data/rf_exit_thresholds")
+    exit_thresholds = pd.read_csv("../data/rf_exit_thresholds.csv")
     fx_contract_specs = pd.read_csv("../data/fx_contract_specs.csv")
     fx_futures_panel = pd.read_csv("../data/fx_futures_panel.csv", index_col="date")
     
@@ -29,9 +27,9 @@ def main():
 
     # Display results
     backtest_trade_log, backtest_equity_log = backtester.get_backtest_results()
-    print_portfolio_stats(equity_log=backtest_equity_log)
-    # print_portfolio_stats(backtest_value_log)
-    # plot_portfolio_history(backtest_value_log)
+    print(backtest_equity_log, backtest_trade_log)
+    print_portfolio_stats(backtest_equity_log)
+    plot_portfolio_history(backtest_equity_log, backtest_trade_log)
 
 
 if __name__ == "__main__":

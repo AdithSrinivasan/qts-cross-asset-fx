@@ -30,6 +30,8 @@ class Backtester:
         # construct the (k, v) dictionary where k = country (string), v = entry/exit threshold (float)
         self.entry_thresholds = construct_threshold_dictionary(entry_thresholds, is_train=is_train)
         self.exit_thresholds = construct_threshold_dictionary(exit_thresholds, is_train=is_train)
+        print(self.entry_thresholds)
+        print(self.exit_thresholds)
 
         # Gets fx contract specs
         self.contract_sizes, self.initial_margin_per_contract = parse_contract_specs(fx_contract_specs)
@@ -49,10 +51,6 @@ class Backtester:
         self.margin_used = 0
         self.backtest_ran = False
 
-        
-    
-    # store positions?
-
 
     def run_backtest(self):
         if self.backtest_ran:
@@ -66,9 +64,18 @@ class Backtester:
                 return_prediction = self.return_predictions.loc[date, country]
                 entry_threshold = self.entry_thresholds[country]
                 exit_threshold = self.exit_thresholds[country]
+                
+                # Check that we have fx price for this date 
+                if (
+                    date not in self.fx_futures_panel.index
+                    or country not in self.fx_futures_panel.columns
+                    or pd.isna(self.fx_futures_panel.loc[date, country])
+                ):
+                    print(f"Skipping {date} {country} because FX data missing")
+                    continue
                 fx_price = self.fx_futures_panel.loc[date, country]
 
-                margin_used = self.portfolio.get_margin_used() # TODO implement
+                margin_used = self.portfolio.get_margin_used()
                 free_margin = self.equity - margin_used
 
                 # Check if signal is long or short
@@ -96,9 +103,10 @@ class Backtester:
 
                 # For existing positions check if price is below exit band
                 cur_position = self.portfolio.get_position(country=country)
-                cur_qty = cur_position.get_quantity()
-                if (cur_qty > 0 and return_prediction <= exit_threshold) or (cur_qty < 0 and return_prediction >= -exit_threshold): 
-                    self.portfolio.liquidate_position(country=country)
+                if cur_position:
+                    cur_qty = cur_position.get_quantity()
+                    if (cur_qty > 0 and return_prediction <= exit_threshold) or (cur_qty < 0 and return_prediction >= -exit_threshold): 
+                        self.portfolio.liquidate_position(country=country)
 
 
                 # Calculate new net PL
@@ -111,12 +119,11 @@ class Backtester:
             # add to equity log
             self.equity_log.append({"date": date, "equity": self.equity})
             
-            
-
 
     def get_backtest_results(self):
         return self.trade_log, self.equity_log
     
+
 
 def construct_threshold_dictionary(df: pd.DataFrame, is_train: bool) -> dict:
         """
@@ -153,8 +160,6 @@ def construct_threshold_dictionary(df: pd.DataFrame, is_train: bool) -> dict:
             for index, row in df.iterrows():
                 d[row["Country"]] = row["Test_Threshold"]
         return d
-
-
 
 
 def parse_contract_specs(fx_contract_specs: pd.DataFrame):
