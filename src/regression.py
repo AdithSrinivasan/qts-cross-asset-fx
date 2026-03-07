@@ -74,7 +74,7 @@ def load_stage2_data():
     eqy["SPX Index"] = spx["Close"]
 
     # print(eqy.head())
-    eqy_returns = eqy.pct_change().fillna(method="ffill")
+    eqy_returns = eqy.pct_change().ffill()
 
     mex = eqy_returns[["MEXBOL Index", "SPX Index"]]
     bra = eqy_returns[["IBOV Index", "SPX Index"]]

@@ -157,7 +157,7 @@ def prepare_fx_spot_data(
     country_fx_dfs = []
 
     for file in fx_data_dir.iterdir():
-        if file.is_file():
+        if file.is_file() and file.suffix == ".csv":
             print("Loading FX data from...", file)
             df = pd.read_csv(
                 file, parse_dates=["observation_date"], index_col="observation_date"

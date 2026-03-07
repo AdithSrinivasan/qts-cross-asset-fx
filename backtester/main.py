@@ -5,7 +5,7 @@ from backtester_engine import Backtester
 from hedge import compute_hedge_beta, compute_hedge_beta_with_intercept
 from performance_output import plot_portfolio_history, print_portfolio_stats
 
-DATA_DIR = Path("../data/")
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
 def main():
@@ -48,25 +48,29 @@ def main():
     # compute hedge beta
     hedge_beta = compute_hedge_beta(backtest_portfolio_log)
     print(f"no intercept beta: {hedge_beta}")
-    
-    print(f"With intercept beta: {compute_hedge_beta_with_intercept(backtest_portfolio_log)}")
-    
-    test_predictions = pd.read_csv("../data/rf_test_predictions.csv", index_col="date")
+
+    print(
+        f"With intercept beta: {compute_hedge_beta_with_intercept(backtest_portfolio_log)}"
+    )
+
+    test_predictions = pd.read_csv(f"{DATA_DIR}/rf_test_predictions.csv", index_col="date")
     # Now compute hedge PnL
-    hedge_bt = Backtester(return_predictions=test_predictions,
-                            fx_futures_panel=fx_futures_panel,
-                            entry_thresholds=entry_thresholds,
-                            exit_thresholds=exit_thresholds,
-                            fx_contract_specs=fx_contract_specs,
-                            is_train=False,
-                            contract_cost_fixed=1.7,
-                            starting_equity=2_000_000,
-                            leverage_multiplier=5.0,
-                            hedge_positions=True,
-                            hedge_ratio=-hedge_beta)
-    
+    hedge_bt = Backtester(
+        return_predictions=test_predictions,
+        fx_futures_panel=fx_futures_panel,
+        entry_thresholds=entry_thresholds,
+        exit_thresholds=exit_thresholds,
+        fx_contract_specs=fx_contract_specs,
+        is_train=False,
+        contract_cost_fixed=1.7,
+        starting_equity=2_000_000,
+        leverage_multiplier=5.0,
+        hedge_positions=True,
+        hedge_ratio=-hedge_beta,
+    )
+
     hedge_bt.run_backtest()
-    
+
     backtest_trade_log, backtest_portfolio_log = hedge_bt.get_backtest_results()
     print(backtest_portfolio_log, backtest_trade_log)
     print_portfolio_stats(backtest_portfolio_log, backtest_trade_log)
