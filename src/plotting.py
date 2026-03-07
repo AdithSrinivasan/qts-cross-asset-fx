@@ -31,14 +31,25 @@ from plotnine import (
 
 from src.load_data import load_fx_spot
 
-CURRENCIES = ["AUD", "BRL", "CAD", "GBP", "JPY", "MXN", "ZAR"]
+CURRENCIES = [
+    "AUD", "BRL", "CAD", "CHF", "GBP", "HKD", "INR", "JPY",
+    "KRW", "MXN", "NOK", "NZD", "SEK", "SGD", "ZAR",
+]
 CURRENCY_NAMES = {
     "AUD": "Australian Dollar",
     "BRL": "Brazilian Real",
     "CAD": "Canadian Dollar",
+    "CHF": "Swiss Franc",
     "GBP": "British Pound",
+    "HKD": "Hong Kong Dollar",
+    "INR": "Indian Rupee",
     "JPY": "Japanese Yen",
+    "KRW": "South Korean Won",
     "MXN": "Mexican Peso",
+    "NOK": "Norwegian Krone",
+    "NZD": "New Zealand Dollar",
+    "SEK": "Swedish Krona",
+    "SGD": "Singapore Dollar",
     "ZAR": "South African Rand",
 }
 
@@ -46,9 +57,17 @@ PALETTE = {
     "AUD": "#2563EB",
     "BRL": "#16A34A",
     "CAD": "#D97706",
+    "CHF": "#DB2777",
     "GBP": "#7C3AED",
+    "HKD": "#059669",
+    "INR": "#9333EA",
     "JPY": "#DC2626",
+    "KRW": "#4F46E5",
     "MXN": "#EA580C",
+    "NOK": "#0D9488",
+    "NZD": "#65A30D",
+    "SEK": "#C026D3",
+    "SGD": "#0284C7",
     "ZAR": "#0891B2",
 }
 
@@ -160,7 +179,7 @@ def plot_absolute_spot_levels(wide_df: pd.DataFrame) -> ggplot:
             color=None,
         )
         + geom_line(size=0.7)
-        + facet_wrap("~currency_label", ncol=4, scales="free_y")
+        + facet_wrap("~currency_label", ncol=5, scales="free_y")
         + scale_color_manual(values=label_palette)
         + scale_fill_manual(values=label_palette)
         + scale_x_datetime(date_breaks="10 years", date_labels="'%y")
@@ -173,12 +192,12 @@ def plot_absolute_spot_levels(wide_df: pd.DataFrame) -> ggplot:
         )
         + theme_minimal()
         + theme(
-            figure_size=(16, 7),
+            figure_size=(18, 12),
             legend_position="none",
             plot_title=element_text(weight="bold"),
             strip_text=element_text(weight="bold", size=8),
-            axis_text_x=element_text(size=7),
-            axis_text_y=element_text(size=7),
+            axis_text_x=element_text(size=6),
+            axis_text_y=element_text(size=6),
         )
     )
 
@@ -261,7 +280,7 @@ def plot_log_return_correlation_heatmap(log_ret: pd.DataFrame) -> ggplot:
         )
         + theme_minimal()
         + theme(
-            figure_size=(8, 7),
+            figure_size=(12, 10),
             plot_title=element_text(weight="bold"),
             panel_grid=element_blank(),
             axis_text_x=element_text(rotation=0),
@@ -304,7 +323,7 @@ def plot_annual_return_heatmap(wide_df: pd.DataFrame) -> ggplot:
         )
         + theme_minimal()
         + theme(
-            figure_size=(18, 4),
+            figure_size=(18, 7),
             plot_title=element_text(weight="bold"),
             axis_text_x=element_text(rotation=45, ha="right", size=7),
             axis_text_y=element_text(size=9),
