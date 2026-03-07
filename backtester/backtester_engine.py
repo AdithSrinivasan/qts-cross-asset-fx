@@ -1,23 +1,25 @@
-import numpy as np
 import pandas as pd
+from hedge import get_hedge_returns
 from pandas import DataFrame
 from portfolio import Portfolio
-from hedge import get_equity_returns, get_hedge_returns
+
 
 class Backtester:
-    def __init__(self, 
-                 return_predictions: DataFrame,
-                 fx_futures_panel: DataFrame,
-                 entry_thresholds: pd.DataFrame,
-                 exit_thresholds: pd.DataFrame,
-                 fx_contract_specs: pd.DataFrame,
-                 is_train: bool,
-                 contract_cost_fixed: float=1.7,
-                 starting_equity: float=2_000_000,
-                 leverage_multiplier: float=5.0,
-                 position_weight_ratio: float=2,
-                 hedge_positions: bool=False,
-                 hedge_ratio=None):
+    def __init__(
+        self,
+        return_predictions: DataFrame,
+        fx_futures_panel: DataFrame,
+        entry_thresholds: pd.DataFrame,
+        exit_thresholds: pd.DataFrame,
+        fx_contract_specs: pd.DataFrame,
+        is_train: bool,
+        contract_cost_fixed: float = 1.7,
+        starting_equity: float = 2_000_000,
+        leverage_multiplier: float = 5.0,
+        position_weight_ratio: float = 2,
+        hedge_positions: bool = False,
+        hedge_ratio=None,
+    ):
 
         # load return predictions
         self.return_predictions = return_predictions.copy()
@@ -25,18 +27,31 @@ class Backtester:
 
         self.fx_futures_panel.drop(columns=["Sweden", "Norway"], inplace=True)
 
-        if "Country" not in entry_thresholds.columns: # TODO add more checks
+        if "Country" not in entry_thresholds.columns:  # TODO add more checks
             raise ValueError("Countries to index by not in dataframe.")
 
         # Gets the number of country assets we are running on TODO should be min of all dfs
-        self.num_assets = min([self.fx_futures_panel.notna().any().sum(), self.return_predictions.notna().any().sum()])
+        self.num_assets = min(
+            [
+                self.fx_futures_panel.notna().any().sum(),
+                self.return_predictions.notna().any().sum(),
+            ]
+        )
 
         # construct the (k, v) dictionary where k = country (string), v = entry/exit threshold (float)
-        self.entry_thresholds = construct_threshold_dictionary(entry_thresholds, is_train=is_train)
-        self.exit_thresholds = construct_threshold_dictionary(exit_thresholds, is_train=is_train)
+        self.entry_thresholds = construct_threshold_dictionary(
+            entry_thresholds, is_train=is_train
+        )
+        self.exit_thresholds = construct_threshold_dictionary(
+            exit_thresholds, is_train=is_train
+        )
 
         # Gets fx contract specs
-        self.contract_sizes, self.initial_margin_per_contract, self.maintenance_margin_per_contract = parse_contract_specs(fx_contract_specs)
+        (
+            self.contract_sizes,
+            self.initial_margin_per_contract,
+            self.maintenance_margin_per_contract,
+        ) = parse_contract_specs(fx_contract_specs)
 
         # Sets leverage and hedging values
         self.contract_cost_fixed = contract_cost_fixed
@@ -44,7 +59,7 @@ class Backtester:
         self.position_weight_ratio = position_weight_ratio
         self.hedge_positions = hedge_positions
         self.hedge_ratio = hedge_ratio
-        
+
         # create self.portfolio object
         self.portfolio = Portfolio()
 
@@ -54,8 +69,7 @@ class Backtester:
         self.backtest_ran = False
         self.total_trading_fees = 0
 
-        self.hedge_returns = {}
-
+        self.hedge_returns = None
 
     def run_backtest(self):
         if self.backtest_ran:
@@ -70,7 +84,7 @@ class Backtester:
                 return_prediction = self.return_predictions.loc[date, country]
                 entry_threshold = self.entry_thresholds[country]
                 exit_threshold = self.exit_thresholds[country]
-                
+
                 # Check that we have fx price for this date and update portfolio price for asset
                 if (
                     date not in self.fx_futures_panel.index
@@ -80,19 +94,33 @@ class Backtester:
                     print(f"Skipping {date} {country} because FX data missing")
                     continue
                 fx_price = self.fx_futures_panel.loc[date, country]
-                self.portfolio.update_asset_price(country=country, new_price=fx_price, date=date)
+                self.portfolio.update_asset_price(
+                    country=country, new_price=fx_price, date=date
+                )
 
                 margin_used = self.portfolio.get_margin_used()
                 free_margin = self.equity - margin_used
 
                 # Check if signal is long or short
-                if return_prediction >= entry_threshold or return_prediction <= -entry_threshold:
+                if (
+                    return_prediction >= entry_threshold
+                    or return_prediction <= -entry_threshold
+                ):
                     contract_multiplier = self.contract_sizes[country]
 
-                    target_asset_exposure = self.equity * self.leverage_multiplier * self.position_weight_ratio / self.num_assets
-                    current_asset_exposure = self.portfolio.get_current_country_exposure(country=country)
+                    target_asset_exposure = (
+                        self.equity
+                        * self.leverage_multiplier
+                        * self.position_weight_ratio
+                        / self.num_assets
+                    )
+                    current_asset_exposure = (
+                        self.portfolio.get_current_country_exposure(country=country)
+                    )
                     contract_value = fx_price * contract_multiplier
-                    trade_qty = (target_asset_exposure - current_asset_exposure) / (contract_value + self.contract_cost_fixed)
+                    trade_qty = (target_asset_exposure - current_asset_exposure) / (
+                        contract_value + self.contract_cost_fixed
+                    )
                     trade_margin = trade_qty * self.initial_margin_per_contract[country]
 
                     # check free margin before placing:
@@ -108,8 +136,29 @@ class Backtester:
                         self.total_trading_fees += trading_cost
 
                         # Log trade
-                        self.portfolio.update_position(country=country, price=fx_price, trade_qty=trade_qty, contract_multiplier=contract_multiplier, contract_initial_margin=self.initial_margin_per_contract[country], contract_maintenance_margin=self.maintenance_margin_per_contract[country])
-                        self.trade_log.append({"date": date, "country": country, "qty": trade_qty, "trade_price": fx_price, "trade_value": trade_value, "trade_margin": trade_margin, "trading_cost": trading_cost})
+                        self.portfolio.update_position(
+                            country=country,
+                            price=fx_price,
+                            trade_qty=trade_qty,
+                            contract_multiplier=contract_multiplier,
+                            contract_initial_margin=self.initial_margin_per_contract[
+                                country
+                            ],
+                            contract_maintenance_margin=self.maintenance_margin_per_contract[
+                                country
+                            ],
+                        )
+                        self.trade_log.append(
+                            {
+                                "date": date,
+                                "country": country,
+                                "qty": trade_qty,
+                                "trade_price": fx_price,
+                                "trade_value": trade_value,
+                                "trade_margin": trade_margin,
+                                "trading_cost": trading_cost,
+                            }
+                        )
 
                 # Calculate new net PL TODO should this be earlier?
                 new_pl = self.portfolio.get_today_pnl(country=country)
@@ -120,9 +169,10 @@ class Backtester:
                 cur_position = self.portfolio.get_position(country=country)
                 if cur_position:
                     cur_qty = cur_position.get_quantity()
-                    if (cur_qty > 0 and return_prediction <= exit_threshold) or (cur_qty < 0 and return_prediction >= -exit_threshold):
+                    if (cur_qty > 0 and return_prediction <= exit_threshold) or (
+                        cur_qty < 0 and return_prediction >= -exit_threshold
+                    ):
                         self.portfolio.liquidate_position(country=country)
-
 
             # Check if margin call and liquidate position with the highest relative pl for day
             total_maintenance_margin = self.portfolio.get_maintenance_margin_used()
@@ -131,7 +181,10 @@ class Backtester:
                 min_rel_pl = float("inf")
                 loss_country = None
                 for country in self.portfolio.get_open_asset_names():
-                    rel_pl = self.portfolio.get_today_pnl(country) / self.portfolio.get_position(country=country).get_exposure() # TODO refactor
+                    rel_pl = (
+                        self.portfolio.get_today_pnl(country)
+                        / self.portfolio.get_position(country=country).get_exposure()
+                    )  # TODO refactor
                     if rel_pl < min_rel_pl:
                         min_rel_pl = rel_pl
                         loss_country = country
@@ -144,7 +197,9 @@ class Backtester:
                 dollar_return = self.get_dollar_return(date=date)
 
                 # hedge pl is our ratio multiplied by our exposure and our dollar return
-                hedge_pl = self.hedge_ratio * self.portfolio.get_net_exposure() * dollar_return
+                hedge_pl = (
+                    self.hedge_ratio * self.portfolio.get_net_exposure() * dollar_return
+                )
             else:
                 hedge_pl = 0.0
             day_pl += hedge_pl
@@ -154,60 +209,75 @@ class Backtester:
 
             # add to portfolio log
             target_total_exposure = self.equity * self.leverage_multiplier
-            self.portfolio_log.append({"date": date, "equity": self.equity, "pl": day_pl, "margin_used": self.portfolio.get_margin_used(), "total_maintenance_margin": self.portfolio.get_maintenance_margin_used(), "total_exposure": self.portfolio.get_total_exposure(), "target_total_exposure": target_total_exposure, "total_trading_fees": self.total_trading_fees, "num_positions": self.portfolio.get_num_positions(), "country_pnl": day_country_pnl})
-
+            self.portfolio_log.append(
+                {
+                    "date": date,
+                    "equity": self.equity,
+                    "pl": day_pl,
+                    "margin_used": self.portfolio.get_margin_used(),
+                    "total_maintenance_margin": self.portfolio.get_maintenance_margin_used(),
+                    "total_exposure": self.portfolio.get_total_exposure(),
+                    "target_total_exposure": target_total_exposure,
+                    "total_trading_fees": self.total_trading_fees,
+                    "num_positions": self.portfolio.get_num_positions(),
+                    "country_pnl": day_country_pnl,
+                }
+            )
 
     def get_dollar_return(self, date):
         if self.hedge_returns is None:
             hedge_returns = get_hedge_returns()
             hedge_returns.index = pd.to_datetime(hedge_returns.index)
-            self._hedge_returns = hedge_returns["hedge_returns"].to_dict()
-        return float(self.hedge_returns.get(pd.to_datetime(date), 0.0))
+            self.hedge_returns = hedge_returns["hedge_returns"].to_dict()
 
+        return float(self.hedge_returns.get(pd.to_datetime(date), 0.0))
 
     def get_backtest_results(self):
         if not self.backtest_ran:
             raise Exception("Backtest not yet ran.")
         return self.trade_log, self.portfolio_log
-    
 
 
 def construct_threshold_dictionary(df: pd.DataFrame, is_train: bool) -> dict:
-        """
-        Constructs the Threshold Dictionary for entry/exit thresholds.
-        Deals with the fact of whether we use Train/Test predictions
+    """
+    Constructs the Threshold Dictionary for entry/exit thresholds.
+    Deals with the fact of whether we use Train/Test predictions
 
-        Args:
-            df (pd.DataFrame): threshold dictionary
-            is_train (bool): tells us whether to use the 
+    Args:
+        df (pd.DataFrame): threshold dictionary
+        is_train (bool): tells us whether to use the
 
-        Returns:
-            dict: dictionary of (key: Country (string), and value: float (threshold value))
-        """
-        # print(df.columns)
-        if "Country" not in df.columns:
-            raise ValueError("Countries to index by not in dataframe.")
-        if is_train and  not ("Train Threshold" in df.columns or "Train_Threshold" in df.columns):
-            raise ValueError("Train Threhshold column by not in dataframe.")
-        if not is_train and  not ("Test Threshold" in df.columns or "Test_Threshold" in df.columns):
-            raise ValueError("Test Threshold column not in dataframe.")
-        
-        # final dictionary we'll return
-        d = {key: 0.0 for key in df["Country"]}
-        
-        # Reset index: without this Train/Test Threshold becomes _3 and _4 for names
-        df.columns = ["Index", "Country", "Train_Threshold", "Test_Threshold"]
-        
-        # if is train, use Train Threshold
-        if is_train:
-            # drop 'Test Threshold' column
-            for index, row in df.iterrows():
-                d[row["Country"]] = row["Train_Threshold"]
-            # map from country to trai
-        else:
-            for index, row in df.iterrows():
-                d[row["Country"]] = row["Test_Threshold"]
-        return d
+    Returns:
+        dict: dictionary of (key: Country (string), and value: float (threshold value))
+    """
+    # print(df.columns)
+    if "Country" not in df.columns:
+        raise ValueError("Countries to index by not in dataframe.")
+    if is_train and not (
+        "Train Threshold" in df.columns or "Train_Threshold" in df.columns
+    ):
+        raise ValueError("Train Threhshold column by not in dataframe.")
+    if not is_train and not (
+        "Test Threshold" in df.columns or "Test_Threshold" in df.columns
+    ):
+        raise ValueError("Test Threshold column not in dataframe.")
+
+    # final dictionary we'll return
+    d = {key: 0.0 for key in df["Country"]}
+
+    # Reset index: without this Train/Test Threshold becomes _3 and _4 for names
+    df.columns = ["Index", "Country", "Train_Threshold", "Test_Threshold"]
+
+    # if is train, use Train Threshold
+    if is_train:
+        # drop 'Test Threshold' column
+        for index, row in df.iterrows():
+            d[row["Country"]] = row["Train_Threshold"]
+        # map from country to trai
+    else:
+        for index, row in df.iterrows():
+            d[row["Country"]] = row["Test_Threshold"]
+    return d
 
 
 def parse_contract_specs(fx_contract_specs: pd.DataFrame):
